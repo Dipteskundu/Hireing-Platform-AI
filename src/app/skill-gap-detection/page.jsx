@@ -19,6 +19,7 @@ import {
   TrendingUp,
   BookOpen,
 } from "lucide-react";
+import PageWrapper from "../components/common/PageWrapper";
 
 export default function SkillGapDetectionPage() {
   const { user, isAuthenticated } = useAuth();
@@ -126,7 +127,7 @@ export default function SkillGapDetectionPage() {
       <Navbar />
 
       {/* ── Hero Banner ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 text-white py-16 px-4">
+      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 text-white py-16 px-4 animate-fade-up">
         {/* Decorative blobs */}
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -right-10 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl pointer-events-none" />
@@ -164,7 +165,7 @@ export default function SkillGapDetectionPage() {
       </section>
 
       {/* ── Search Bar ── */}
-      <section className="max-w-4xl mx-auto w-full px-4 -mt-6 z-10 relative">
+      <section className="max-w-4xl mx-auto w-full px-4 -mt-6 z-10 relative animate-fade-up delay-150">
         <div className="bg-white rounded-2xl shadow-lg border border-slate-100 flex items-center gap-3 px-5 py-4">
           <Search className="w-5 h-5 text-slate-400 shrink-0" />
           <input
@@ -187,6 +188,7 @@ export default function SkillGapDetectionPage() {
 
       {/* ── Jobs Grid ── */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-10">
+        <PageWrapper>
         {/* Count row */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm font-semibold text-slate-500">
@@ -218,7 +220,7 @@ export default function SkillGapDetectionPage() {
               return (
                 <div
                   key={jobId}
-                  className="group bg-white rounded-2xl border border-slate-100 p-5 flex flex-col gap-4 hover:shadow-md hover:border-indigo-100 transition-all duration-200"
+                  className="group bg-white rounded-2xl border border-slate-100 p-5 flex flex-col gap-4 hover:shadow-lg hover:-translate-y-1 hover:border-indigo-100 transition-all duration-200"
                 >
                   {/* Header */}
                   <div className="flex items-start gap-3">
@@ -289,6 +291,7 @@ export default function SkillGapDetectionPage() {
             })}
           </div>
         )}
+      </PageWrapper>
       </main>
 
       <Footer />

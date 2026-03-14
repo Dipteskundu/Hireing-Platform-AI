@@ -18,7 +18,7 @@ export default function SkillTestPage() {
     const [warnMsg, setWarnMsg] = useState("");
 
     const [unverifiedSkills, setUnverifiedSkills] = useState([]);
-    const [selectedSkill, setSelectedSkill] = useState("");
+    const [selectedSkills, setSelectedSkills] = useState([]);
 
     const [testData, setTestData] = useState(null); // { testId, questions, skill }
     const [answers, setAnswers] = useState({}); // { questionId: answerText }
@@ -83,7 +83,7 @@ export default function SkillTestPage() {
     };
 
     const startTestGeneration = async () => {
-        if (!selectedSkill) return;
+        if (selectedSkills.length === 0) return;
         setPageStatus("submitting"); // repurposing for loading questions
         setErrorMsg("");
 
@@ -91,7 +91,7 @@ export default function SkillTestPage() {
             const res = await fetch(`${apiBase}/api/skill-test/generate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ candidateId: user.uid, skill: selectedSkill })
+                body: JSON.stringify({ candidateId: user.uid, skills: selectedSkills })
             });
             const data = await res.json();
             if (res.ok && data.success) {
@@ -242,37 +242,48 @@ export default function SkillTestPage() {
                 {/* SKILL SELECTION */}
                 {pageStatus === "selection" && (
                     <div className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200 border border-slate-100 max-w-2xl mx-auto w-full">
-                        <h2 className="text-xl font-bold text-slate-900 mb-2">Select a skill to verify</h2>
+                        <h2 className="text-xl font-bold text-slate-900 mb-2">Select skills to verify</h2>
                         <p className="text-slate-500 text-sm mb-8 leading-relaxed">
-                            You have added skills to your profile that are not yet verified. Select one below to begin the technical test.
+                            You have added skills to your profile that are not yet verified. Select up to 3 skills below to begin the technical test.
                         </p>
 
                         <div className="space-y-3 mb-8">
-                            {unverifiedSkills.map(skill => (
-                                <label key={skill} className={`block p-5 border-2 rounded-2xl cursor-pointer transition-all ${selectedSkill === skill ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 hover:border-indigo-200'}`}>
+                            {unverifiedSkills.map(skill => {
+                                const isSelected = selectedSkills.includes(skill);
+                                const isDisabled = !isSelected && selectedSkills.length >= 3;
+                                return (
+                                <label key={skill} className={`block p-5 border-2 rounded-2xl cursor-pointer transition-all ${isSelected ? 'border-indigo-600 bg-indigo-50/50' : isDisabled ? 'border-slat-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-100 hover:border-indigo-200'}`}>
                                     <div className="flex items-center gap-4">
                                         <input 
-                                            type="radio" 
-                                            className="w-5 h-5 text-indigo-600 focus:ring-0" 
+                                            type="checkbox" 
+                                            className="w-5 h-5 text-indigo-600 focus:ring-0 rounded" 
                                             name="skill" 
                                             value={skill} 
-                                            checked={selectedSkill === skill}
-                                            onChange={(e) => setSelectedSkill(e.target.value)}
+                                            checked={isSelected}
+                                            disabled={isDisabled}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    if (selectedSkills.length < 3) setSelectedSkills([...selectedSkills, skill]);
+                                                } else {
+                                                    setSelectedSkills(selectedSkills.filter(s => s !== skill));
+                                                }
+                                            }}
                                         />
                                         <span className="font-bold text-slate-900 text-lg">{skill}</span>
                                     </div>
                                 </label>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         {errorMsg && <p className="text-red-500 font-medium text-sm mb-4 text-center">{errorMsg}</p>}
 
                         <button 
-                            disabled={!selectedSkill}
-                            className={`w-full py-4 rounded-2xl font-bold shadow-xl flex flex-col items-center justify-center ${selectedSkill ? 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 shadow-indigo-200' : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-transparent'}`}
+                            disabled={selectedSkills.length === 0}
+                            className={`w-full py-4 rounded-2xl font-bold shadow-xl flex flex-col items-center justify-center ${selectedSkills.length > 0 ? 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 shadow-indigo-200' : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-transparent'}`}
                             onClick={startTestGeneration}
                         >
-                            <span className="text-base text-lg mb-1">Begin Test</span>
+                            <span className="text-base text-lg mb-1">Begin Test ({selectedSkills.length}/3)</span>
                             <span className="font-normal text-xs text-white/70">10-Minute Time Limit</span>
                         </button>
                     </div>
@@ -285,8 +296,8 @@ export default function SkillTestPage() {
                         {/* Status Bar */}
                         <div className="flex flex-wrap items-center justify-between gap-4 mb-10 pb-6 border-b border-slate-100 sticky top-0 bg-white z-10 pt-2">
                             <div>
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Testing Skill</p>
-                                <h2 className="text-xl font-black text-indigo-600">{testData.skill}</h2>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Testing Skills</p>
+                                <h2 className="text-xl font-black text-indigo-600">{testData.skills ? testData.skills.join(", ") : testData.skill}</h2>
                             </div>
                             <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl font-bold border ${timeLeft < 60 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                                 <Clock className="w-5 h-5" />
@@ -369,8 +380,9 @@ export default function SkillTestPage() {
                                 <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mx-auto mb-6 relative z-10">
                                     <CheckCircle2 className="w-12 h-12" />
                                 </div>
-                                <h2 className="text-3xl font-black text-slate-900 mb-2">Configurations!</h2>
-                                <p className="text-emerald-600 font-bold mb-8 text-lg">You passed the {selectedSkill} test.</p>
+                                <h2 className="text-3xl font-black text-slate-900 mb-2">Congratulations!</h2>
+                                <p className="text-emerald-600 font-bold mb-2 text-lg">You passed the test for {selectedSkills.join(", ")}.</p>
+                                <p className="text-slate-500 text-sm mb-8">Next step: Complete the Communication Verification to unlock job applications.</p>
                             </>
                         ) : (
                             <>
@@ -394,10 +406,10 @@ export default function SkillTestPage() {
 
                         <div className="flex gap-4 p-4 border-t border-slate-100 justify-center">
                             <button
-                                onClick={() => router.push("/jobs")}
-                                className={`px-8 py-4 text-white rounded-2xl font-bold shadow-xl transition-all ${resultData.result === "pass" ? "bg-slate-900 hover:bg-slate-800" : "bg-red-600 hover:bg-red-700"}`}
+                                onClick={() => router.push(resultData.result === "pass" ? "/verification/communication-intro" : "/jobs")}
+                                className={`px-8 py-4 text-white rounded-2xl font-bold shadow-xl transition-all ${resultData.result === "pass" ? "bg-indigo-600 hover:bg-indigo-700" : "bg-red-600 hover:bg-red-700"}`}
                             >
-                                {resultData.result === "pass" ? "Return to Jobs" : "Understood"}
+                                {resultData.result === "pass" ? "Continue → Communication Test" : "Understood"}
                             </button>
                         </div>
                     </div>

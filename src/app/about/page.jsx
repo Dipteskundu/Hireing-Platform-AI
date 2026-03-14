@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 import { Rocket, Target, Users, Shield, Zap, Globe, Heart, Award, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import PageWrapper from "../components/common/PageWrapper";
 
 export default function AboutPage() {
     return (
@@ -11,9 +12,10 @@ export default function AboutPage() {
             <Navbar />
 
             <main className="pt-8 sm:pt-12 pb-24">
+                <PageWrapper>
                 {/* Hero Section */}
                 <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mb-16 sm:mb-24">
-                    <div className="max-w-4xl">
+                    <div className="max-w-4xl animate-fade-up">
                         <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-tight mb-6 sm:mb-8">
                             We&apos;re redefining the <br className="hidden sm:block" />
                             <span className="text-indigo-600">future of hiring.</span>
@@ -25,7 +27,7 @@ export default function AboutPage() {
                 </section>
 
                 {/* Mission & Vision - Bento Grid Style */}
-                <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mb-20 sm:mb-32">
+                <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mb-20 sm:mb-32 reveal">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <div className="md:col-span-2 bg-slate-900 rounded-3xl sm:rounded-[2.5rem] p-8 sm:p-12 text-white relative overflow-hidden group">
                             <div className="relative z-10 h-full flex flex-col justify-between">
@@ -70,7 +72,7 @@ export default function AboutPage() {
                 </section>
 
                 {/* Core Values */}
-                <section className="bg-slate-50 py-20 sm:py-32 border-y border-slate-100">
+                <section className="bg-slate-50 py-20 sm:py-32 border-y border-slate-100 reveal">
                     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                         <div className="text-center max-w-2xl mx-auto mb-20">
                             <h2 className="text-4xl font-black text-slate-900 mb-6 font-sans tracking-tight">Values that drive us</h2>
@@ -121,7 +123,7 @@ export default function AboutPage() {
                 </section>
 
                 {/* Team Hook Section */}
-                <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+                <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-32 reveal">
                     <div className="bg-indigo-600 rounded-3xl sm:rounded-[3rem] p-8 sm:p-16 md:p-24 flex flex-col lg:flex-row items-center gap-12 lg:gap-16 relative overflow-hidden text-center lg:text-left">
                         <div className="relative z-10 flex-1">
                             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-6 sm:mb-8 leading-tight">
@@ -163,6 +165,7 @@ export default function AboutPage() {
                         </div>
                     </div>
                 </section>
+                </PageWrapper>
             </main>
 
             <Footer />

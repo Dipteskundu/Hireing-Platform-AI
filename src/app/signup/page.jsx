@@ -95,7 +95,7 @@ export default function SignUpPage() {
             </Link>
 
             {/* Side Content (Right side for variety) */}
-            <div className="hidden lg:flex lg:w-1/2 bg-indigo-600 relative overflow-hidden flex-col justify-between p-16">
+            <div className="hidden lg:flex lg:w-1/2 bg-indigo-600 relative overflow-hidden flex-col justify-between p-16 animate-slide-in-right">
                 <div className="relative z-10">
                     <Link href="/" className="flex items-center gap-2 group w-fit">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 premium-shadow transition-transform group-hover:rotate-6">
@@ -149,7 +149,7 @@ export default function SignUpPage() {
             </div>
 
             {/* Form Content */}
-            <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-20 relative">
+            <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-20 relative animate-slide-in-left">
                 <div className="w-full max-w-md">
 
                     <div className="mb-10">

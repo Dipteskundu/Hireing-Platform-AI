@@ -3,12 +3,27 @@
 import { useState, useEffect } from "react";
 import {
     Briefcase, Users, TrendingUp, Target, ChevronRight,
-    Plus, Clock, CheckCircle, X, Star, BarChart2, Mail, MessageSquare
+    Plus, Clock, CheckCircle, Star, BarChart2, Mail, X
 } from "lucide-react";
 import Link from "next/link";
 import { ref, onValue } from "firebase/database";
 import { rtdb } from "../../lib/firebaseClient";
 import Skeleton from "../../components/common/Skeleton";
+import { useScrollReveal } from "../../lib/useScrollReveal";
+
+function StatCard({ label, value, icon: Icon, color, bg }) {
+    return (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+            <div className={`${bg} ${color} p-3 rounded-xl shrink-0 group-hover:scale-105 transition-transform`}>
+                <Icon className="w-6 h-6" aria-hidden="true" />
+            </div>
+            <div>
+                <p className="text-2xl font-bold text-slate-900">{value}</p>
+                <p className="text-sm text-slate-500 font-medium mt-0.5">{label}</p>
+            </div>
+        </div>
+    );
+}
 
 export default function RecruiterDashboard({ user, data, loading }) {
     const [liveApplicantCounts, setLiveApplicantCounts] = useState({});
@@ -19,74 +34,57 @@ export default function RecruiterDashboard({ user, data, loading }) {
     });
     const [posting, setPosting] = useState(false);
     const [postMsg, setPostMsg] = useState(null);
+    const revealRef = useScrollReveal();
 
     useEffect(() => {
         if (!data?.jobs) return;
-
         const unsubscribes = data.jobs.map(job => {
             const countRef = ref(rtdb, `jobApplicants/${job._id}`);
             return onValue(countRef, (snapshot) => {
                 const val = snapshot.val();
-                if (val && val.count !== undefined) {
-                    setLiveApplicantCounts(prev => ({
-                        ...prev,
-                        [job._id]: val.count
-                    }));
+                if (val?.count !== undefined) {
+                    setLiveApplicantCounts(prev => ({ ...prev, [job._id]: val.count }));
                 }
             });
         });
-
-        return () => {
-            unsubscribes.forEach(unsub => unsub());
-        };
+        return () => unsubscribes.forEach(u => u());
     }, [data?.jobs]);
 
     if (loading) {
         return (
-            <div className="space-y-10 animate-fade-in">
-                {/* Stats Skeletons */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-6" aria-busy="true" aria-label="Loading recruiter dashboard">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[...Array(4)].map((_, i) => (
-                        <div key={i} className="bg-white p-7 rounded-3xl border border-slate-100 shadow-sm">
-                            <Skeleton className="w-14 h-14 rounded-2xl mb-6" />
-                            <Skeleton className="h-8 w-24 mb-2" />
-                            <Skeleton className="h-4 w-32" />
+                        <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6">
+                            <Skeleton className="w-12 h-12 rounded-xl mb-4" />
+                            <Skeleton className="h-7 w-16 mb-2" />
+                            <Skeleton className="h-4 w-24" />
                         </div>
                     ))}
                 </div>
-
-                <div className="bg-slate-200 animate-pulse h-48 rounded-[2.5rem]"></div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
-                        <Skeleton className="h-10 w-48 mb-6" />
-                        <div className="bg-white rounded-[2.5rem] p-6 space-y-4">
-                            {[...Array(3)].map((_, i) => (
-                                <Skeleton key={i} className="h-24 w-full rounded-3xl" />
-                            ))}
-                        </div>
+                <Skeleton className="h-24 w-full rounded-2xl" />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-3">
+                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
                     </div>
-                    <div className="space-y-6">
-                        <Skeleton className="h-64 w-full rounded-[2.5rem]" />
-                        <Skeleton className="h-48 w-full rounded-[2.5rem]" />
-                    </div>
+                    <Skeleton className="h-64 w-full rounded-2xl" />
                 </div>
             </div>
         );
     }
 
     const stats = [
-        { label: "Active Jobs", value: data?.stats?.activeJobs ?? "0", icon: Briefcase, color: "text-indigo-600", bg: "bg-indigo-50" },
-        { label: "Total Applicants", value: data?.stats?.totalApplicants ?? "0", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-        { label: "Shortlisted", value: data?.stats?.shortlisted ?? "0", icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { label: "Interviews Set", value: data?.stats?.interviews ?? "0", icon: Target, color: "text-amber-600", bg: "bg-amber-50" },
+        { label: "Active Jobs",      value: data?.stats?.activeJobs      ?? "0", icon: Briefcase,    color: "text-indigo-600", bg: "bg-indigo-50" },
+        { label: "Total Applicants", value: data?.stats?.totalApplicants  ?? "0", icon: Users,        color: "text-blue-600",   bg: "bg-blue-50" },
+        { label: "Shortlisted",      value: data?.stats?.shortlisted      ?? "0", icon: CheckCircle,  color: "text-emerald-600",bg: "bg-emerald-50" },
+        { label: "Interviews Set",   value: data?.stats?.interviews       ?? "0", icon: Target,       color: "text-amber-600",  bg: "bg-amber-50" },
     ];
 
     const handlePostJob = async (e) => {
         e.preventDefault();
         setPosting(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"}/api/jobs`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/jobs`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -96,14 +94,14 @@ export default function RecruiterDashboard({ user, data, loading }) {
             });
             const result = await res.json();
             if (result.success) {
-                setPostMsg({ type: "success", text: "Job posted successfully!" });
+                setPostMsg({ type: "success", text: "Job posted successfully." });
                 setJobForm({ title: "", company: "", location: "", salaryRange: "", experienceLevel: "", employmentType: "", skills: "" });
                 setShowPostJob(false);
             } else {
-                setPostMsg({ type: "error", text: result.message });
+                setPostMsg({ type: "error", text: result.message || "Failed to post job." });
             }
         } catch {
-            setPostMsg({ type: "error", text: "Failed to post job." });
+            setPostMsg({ type: "error", text: "Network error. Please try again." });
         }
         setPosting(false);
         setTimeout(() => setPostMsg(null), 4000);
@@ -112,259 +110,234 @@ export default function RecruiterDashboard({ user, data, loading }) {
     const handleStatusChange = async (appId, newStatus) => {
         let feedback = null;
         if (newStatus === "rejected") {
-            feedback = prompt("Please provide a reason or feedback for this rejection:");
-            if (feedback === null) return; // Cancelled
+            feedback = prompt("Provide feedback for this rejection (optional):");
+            if (feedback === null) return;
         }
-
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"}/api/applications/${appId}/status`, {
+            await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/applications/${appId}/status`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus, feedback }),
             });
-            const result = await res.json();
-            if (result.success) {
-                // Quick hack to update UI optimally, might replace with proper refetch later
-                alert("Status updated successfully.");
-            }
         } catch (err) {
             console.error("Status update failed:", err);
-            alert("Failed to update status.");
         }
     };
 
     return (
-        <div className="space-y-10 animate-fade-in duration-500">
+        <div className="space-y-8" ref={revealRef}>
 
-            {/* Post Job Toast */}
+            {/* Toast */}
             {postMsg && (
-                <div className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-xl font-bold text-white transition-all ${postMsg.type === "success" ? "bg-emerald-500" : "bg-red-500"}`}>
+                <div
+                    role="alert"
+                    aria-live="polite"
+                    className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-lg font-semibold text-sm text-white transition-all ${postMsg.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}
+                >
                     {postMsg.text}
+                    <button onClick={() => setPostMsg(null)} aria-label="Dismiss" className="ml-1 opacity-80 hover:opacity-100">
+                        <X className="w-4 h-4" />
+                    </button>
                 </div>
             )}
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {stats.map((stat) => (
-                    <div key={stat.label} className="bg-white p-7 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className={`${stat.bg} ${stat.color} p-4 rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                                <stat.icon className="w-7 h-7" />
-                            </div>
-                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-xs font-black">
-                                <TrendingUp className="w-3.5 h-3.5" /> +8%
-                            </div>
-                        </div>
-                        <h3 className="text-4xl font-black text-slate-900 mb-1.5 tracking-tight">{stat.value}</h3>
-                        <p className="text-[13px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
-                    </div>
-                ))}
-            </div>
-
-            {/* Post Job Panel */}
-            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <h2 className="text-2xl font-black mb-2">Post a New Job</h2>
-                        <p className="text-indigo-200 font-medium">Reach thousands of qualified candidates instantly.</p>
-                    </div>
-                    <button
-                        id="post-job-btn"
-                        onClick={() => setShowPostJob(!showPostJob)}
-                        className="flex items-center gap-3 bg-white text-indigo-700 px-6 py-3.5 rounded-2xl font-black hover:bg-indigo-50 transition-all active:scale-95 shrink-0 shadow-xl"
-                    >
-                        <Plus className="w-5 h-5" />
-                        {showPostJob ? "Close Form" : "Post New Job"}
-                    </button>
+            {/* Stats */}
+            <section aria-label="Recruiter stats" className="reveal">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {stats.map(s => <StatCard key={s.label} {...s} />)}
                 </div>
+            </section>
+
+            {/* Post Job Banner */}
+            <div className="reveal delay-100 bg-indigo-600 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-white font-bold text-lg">Post a New Job</h2>
+                    <p className="text-indigo-200 text-sm mt-0.5">Reach thousands of qualified candidates instantly.</p>
+                </div>
+                <button
+                    onClick={() => setShowPostJob(!showPostJob)}
+                    aria-expanded={showPostJob}
+                    aria-controls="post-job-form"
+                    className="inline-flex items-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-indigo-50 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600 shrink-0"
+                >
+                    <Plus className="w-4 h-4" aria-hidden="true" />
+                    {showPostJob ? "Cancel" : "Post Job"}
+                </button>
             </div>
 
             {/* Post Job Form */}
             {showPostJob && (
-                <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8">
-                    <h3 className="text-xl font-black text-slate-900 mb-6">Job Details</h3>
-                    <form onSubmit={handlePostJob} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div id="post-job-form" className="bg-white rounded-2xl border border-slate-200 p-6">
+                    <h3 className="font-bold text-slate-900 mb-5">Job Details</h3>
+                    <form onSubmit={handlePostJob} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {[
-                            { label: "Job Title *", key: "title", placeholder: "e.g. Senior React Developer" },
-                            { label: "Company *", key: "company", placeholder: "e.g. Google" },
-                            { label: "Location *", key: "location", placeholder: "e.g. Remote / New York" },
-                            { label: "Salary Range", key: "salaryRange", placeholder: "e.g. $80k - $120k" },
-                            { label: "Experience Level", key: "experienceLevel", placeholder: "e.g. Mid-level / Senior" },
-                            { label: "Employment Type", key: "employmentType", placeholder: "e.g. Full-time / Part-time" },
-                        ].map(({ label, key, placeholder }) => (
+                            { label: "Job Title", key: "title", placeholder: "e.g. Senior React Developer", required: true },
+                            { label: "Company", key: "company", placeholder: "e.g. Google", required: true },
+                            { label: "Location", key: "location", placeholder: "e.g. Remote / New York", required: true },
+                            { label: "Salary Range", key: "salaryRange", placeholder: "e.g. $80k – $120k" },
+                            { label: "Experience Level", key: "experienceLevel", placeholder: "e.g. Mid-level" },
+                            { label: "Employment Type", key: "employmentType", placeholder: "e.g. Full-time" },
+                        ].map(({ label, key, placeholder, required }) => (
                             <div key={key}>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">{label}</label>
+                                <label htmlFor={`job-${key}`} className="block text-xs font-semibold text-slate-600 mb-1.5">
+                                    {label}{required && <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>}
+                                </label>
                                 <input
+                                    id={`job-${key}`}
                                     type="text"
                                     placeholder={placeholder}
                                     value={jobForm[key]}
                                     onChange={e => setJobForm(f => ({ ...f, [key]: e.target.value }))}
-                                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
-                                    required={["title", "company", "location"].includes(key)}
+                                    required={required}
+                                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
                                 />
                             </div>
                         ))}
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Required Skills (comma-separated)</label>
+                        <div className="sm:col-span-2">
+                            <label htmlFor="job-skills" className="block text-xs font-semibold text-slate-600 mb-1.5">
+                                Required Skills <span className="text-slate-400 font-normal">(comma-separated)</span>
+                            </label>
                             <input
+                                id="job-skills"
                                 type="text"
                                 placeholder="e.g. React, Node.js, TypeScript"
                                 value={jobForm.skills}
                                 onChange={e => setJobForm(f => ({ ...f, skills: e.target.value }))}
-                                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
                             />
                         </div>
-                        <div className="md:col-span-2">
+                        <div className="sm:col-span-2">
                             <button
                                 type="submit"
                                 disabled={posting}
-                                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-60 shadow-lg shadow-indigo-200"
+                                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60"
                             >
-                                {posting ? "Posting..." : "Post Job Now"}
+                                {posting ? "Posting..." : "Post Job"}
                             </button>
                         </div>
                     </form>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Recent Applications (Candidate Ranking) */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                                <Users className="w-6 h-6 text-indigo-600" />
-                            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Recent Applicants */}
+                <div className="lg:col-span-2 space-y-4">
+                    <section aria-labelledby="applicants-heading">
+                        <h2 id="applicants-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+                            <Users className="w-5 h-5 text-indigo-500" aria-hidden="true" />
                             Recent Applicants
                         </h2>
-                    </div>
-
-                    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-2">
-                        {(data?.recentApplications || []).length > 0 ? (
-                            (data?.recentApplications || []).map((app, i) => (
-                                <div key={i} className="group p-6 flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-all rounded-3xl gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center font-black text-xl text-indigo-400">
-                                            {app.email?.[0]?.toUpperCase() || "?"}
-                                        </div>
-                                        <div>
-                                            <h4 className="text-base font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{app.email}</h4>
-                                            <p className="text-sm font-bold text-slate-400 flex items-center gap-1 mt-0.5">
-                                                <Briefcase className="w-3.5 h-3.5" />
-                                                {app.jobTitle} — {app.company}
-                                            </p>
-                                            {app.communicationScore != null && (
-                                                <div className="flex items-center gap-1.5 mt-2">
-                                                    <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
-                                                    <span className="text-xs font-bold text-indigo-600">
-                                                        Communication: {app.communicationScore}/100
-                                                    </span>
+                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                            {(data?.recentApplications || []).length > 0 ? (
+                                <ul role="list" className="divide-y divide-slate-100">
+                                    {data.recentApplications.map((app, i) => (
+                                        <li key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center font-bold text-indigo-500 text-sm shrink-0" aria-hidden="true">
+                                                    {app.email?.[0]?.toUpperCase() || "?"}
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 mt-2 sm:mt-0 flex-wrap">
-                                        <select
-                                            defaultValue={app.status || "submitted"}
-                                            onChange={e => handleStatusChange(app._id, e.target.value)}
-                                            className="text-xs font-black border border-slate-200 rounded-xl px-3 py-2 cursor-pointer focus:outline-none focus:border-indigo-400 bg-white"
-                                        >
-                                            <option value="submitted">Submitted</option>
-                                            <option value="shortlisted">Shortlisted</option>
-                                            <option value="interviewing">Interviewing</option>
-                                            <option value="rejected">Rejected</option>
-                                            <option value="selected">Selected</option>
-                                        </select>
-                                        <button
-                                            onClick={async () => {
-                                                const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"}/api/applications/${app._id}?role=recruiter`);
-                                                const result = await res.json();
-                                                if (result.success) {
-                                                    alert("Applicant profile marked as seen.");
-                                                }
-                                            }}
-                                            className="flex items-center gap-1.5 bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-slate-800 transition-all"
-                                        >
-                                            <TrendingUp className="w-3.5 h-3.5" />
-                                            Review
-                                        </button>
-                                        <button className="flex items-center gap-1.5 bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-xs font-black hover:bg-indigo-600 hover:text-white transition-all">
-                                            <Mail className="w-3.5 h-3.5" />
-                                            Contact
-                                        </button>
-                                    </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold text-slate-800 text-sm truncate">{app.email}</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5 truncate">{app.jobTitle} — {app.company}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                                <label htmlFor={`status-${app._id || i}`} className="sr-only">
+                                                    Update status for {app.email}
+                                                </label>
+                                                <select
+                                                    id={`status-${app._id || i}`}
+                                                    defaultValue={app.status || "submitted"}
+                                                    onChange={e => handleStatusChange(app._id, e.target.value)}
+                                                    className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 cursor-pointer"
+                                                >
+                                                    <option value="submitted">Submitted</option>
+                                                    <option value="shortlisted">Shortlisted</option>
+                                                    <option value="interviewing">Interviewing</option>
+                                                    <option value="rejected">Rejected</option>
+                                                    <option value="selected">Selected</option>
+                                                </select>
+                                                <button className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                                                    <Mail className="w-3.5 h-3.5" aria-hidden="true" />
+                                                    Contact
+                                                </button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="py-12 text-center">
+                                    <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" aria-hidden="true" />
+                                    <p className="text-slate-500 font-medium text-sm">No applicants yet</p>
+                                    <p className="text-slate-400 text-xs mt-1">Post a job to start receiving applications.</p>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="p-10 text-center text-slate-400 font-bold">
-                                No applicants yet. Post a job to start receiving applications!
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    </section>
                 </div>
 
-                {/* Sidebar: Hiring Score Formula + Active Jobs */}
-                <div className="space-y-6">
-                    {/* Hiring Score Card */}
-                    <div className="bg-[#0f172a] rounded-[2.5rem] p-7 text-white overflow-hidden relative">
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-600/20 rounded-full blur-3xl"></div>
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-3 mb-5">
-                                <Star className="w-6 h-6 text-amber-400 fill-amber-400" />
-                                <span className="text-indigo-300 text-xs font-black uppercase tracking-widest">Hiring Score Formula</span>
-                            </div>
-                            <div className="space-y-4">
-                                {[
-                                    { label: "Skill Match", pct: "50%", color: "bg-indigo-500" },
-                                    { label: "Test Score", pct: "30%", color: "bg-blue-500" },
-                                    { label: "Experience", pct: "20%", color: "bg-cyan-500" },
-                                ].map(({ label, pct, color }) => (
-                                    <div key={label}>
-                                        <div className="flex justify-between text-sm font-bold mb-1.5">
-                                            <span className="text-slate-400">{label}</span>
-                                            <span className="text-white font-black">{pct}</span>
-                                        </div>
-                                        <div className="h-2 bg-slate-800 rounded-full">
-                                            <div className={`h-full ${color} rounded-full`} style={{ width: pct }}></div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <p className="text-slate-500 text-xs font-medium mt-5 leading-relaxed">Candidates are ranked by our AI model using this formula.</p>
+                {/* Sidebar */}
+                <aside className="space-y-5" aria-label="Recruiter tools">
+
+                    {/* Hiring Score */}
+                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Star className="w-5 h-5 text-amber-400" aria-hidden="true" />
+                            <h3 className="font-bold text-sm">AI Hiring Score Formula</h3>
                         </div>
+                        <div className="space-y-3">
+                            {[
+                                { label: "Skill Match", pct: 50, color: "bg-indigo-500" },
+                                { label: "Test Score",  pct: 30, color: "bg-blue-500" },
+                                { label: "Experience",  pct: 20, color: "bg-cyan-500" },
+                            ].map(({ label, pct, color }) => (
+                                <div key={label}>
+                                    <div className="flex justify-between text-xs font-medium mb-1.5">
+                                        <span className="text-slate-400">{label}</span>
+                                        <span className="text-white font-bold">{pct}%</span>
+                                    </div>
+                                    <div
+                                        className="h-1.5 bg-slate-700 rounded-full overflow-hidden"
+                                        role="progressbar"
+                                        aria-valuenow={pct}
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        aria-label={`${label}: ${pct}%`}
+                                    >
+                                        <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-slate-500 text-xs mt-4">Candidates are ranked by our AI model using this formula.</p>
                     </div>
 
                     {/* Active Jobs */}
-                    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-7">
-                        <h3 className="text-lg font-black text-slate-900 mb-5 flex items-center gap-2">
-                            <BarChart2 className="w-5 h-5 text-indigo-600" /> Active Jobs
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                        <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2 text-sm">
+                            <BarChart2 className="w-4 h-4 text-indigo-500" aria-hidden="true" />
+                            Active Jobs
                         </h3>
-                        <div className="space-y-3">
-                            {(data?.jobs || []).length > 0 ? (
-                                data.jobs.map((job, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl hover:bg-indigo-50 transition-all group">
-                                        <div>
-                                            <p className="text-sm font-black text-slate-800 group-hover:text-indigo-600">{job.title}</p>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <p className="text-xs text-slate-400 font-bold">{job.location}</p>
-                                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                                <p className="text-xs text-indigo-600 font-black">
-                                                    {liveApplicantCounts[job._id] !== undefined
-                                                        ? liveApplicantCounts[job._id]
-                                                        : (job.applicantsCount || 0)} Applicants
-                                                </p>
-                                            </div>
+                        {(data?.jobs || []).length > 0 ? (
+                            <ul role="list" className="space-y-2">
+                                {data.jobs.map((job, i) => (
+                                    <li key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-indigo-50 transition-colors group">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 truncate">{job.title}</p>
+                                            <p className="text-xs text-slate-400 mt-0.5">
+                                                {liveApplicantCounts[job._id] ?? job.applicantsCount ?? 0} applicants
+                                            </p>
                                         </div>
-                                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-slate-400 font-medium">No active jobs yet.</p>
-                            )}
-                        </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0 ml-2" aria-hidden="true" />
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm text-slate-400">No active jobs yet.</p>
+                        )}
                     </div>
-                </div>
+                </aside>
             </div>
         </div>
     );

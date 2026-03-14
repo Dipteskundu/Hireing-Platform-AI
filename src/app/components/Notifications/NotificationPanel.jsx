@@ -57,7 +57,9 @@ export default function NotificationPanel({ uid, isOpen, onClose, setParentUnrea
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase =
+        process.env.NEXT_PUBLIC_API_BASE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
 
     // Derive unreadCount directly during render, no effect needed
     const unreadCount = notifications.filter(n => !n.read).length;
@@ -66,8 +68,11 @@ export default function NotificationPanel({ uid, isOpen, onClose, setParentUnrea
         if (!uid) return;
         let mounted = true;
 
-        fetch(`${apiBase}/api/notifications/${uid}`)
-            .then((r) => r.json())
+        fetch(new URL(`/api/notifications/${uid}`, apiBase).toString())
+            .then((r) => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
             .then((json) => {
                 if (!mounted) return;
                 if (json.success && json.data) {
@@ -122,8 +127,8 @@ export default function NotificationPanel({ uid, isOpen, onClose, setParentUnrea
         // Only mark as read if it's currently unread
         if (!notif.read) {
             try {
-                const res = await fetch(`${apiBase}/api/notifications/${id}/read`, { method: "PATCH" });
-                const json = await res.json();
+        const res = await fetch(new URL(`/api/notifications/${id}/read`, apiBase).toString(), { method: "PATCH" });
+        const json = await res.json();
                 if (json.success) {
                     setNotifications((prev) =>
                         prev.map((n) => ((n._id === id || n.id === id) ? { ...n, read: true } : n))
@@ -140,7 +145,7 @@ export default function NotificationPanel({ uid, isOpen, onClose, setParentUnrea
 
     async function markAllRead() {
         try {
-            const res = await fetch(`${apiBase}/api/notifications/read-all/${uid}`, { method: "PATCH" });
+            const res = await fetch(new URL(`/api/notifications/read-all/${uid}`, apiBase).toString(), { method: "PATCH" });
             const json = await res.json();
             if (json.success) {
                 setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));

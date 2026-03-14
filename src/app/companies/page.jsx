@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import PageWrapper from "../components/common/PageWrapper";
 
 const COMPANIES_PER_PAGE = 9;
 
@@ -170,9 +171,9 @@ export default function CompaniesPage() {
 
             <main className="pt-8 sm:pt-12 pb-24">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-
+                    <PageWrapper>
                     {/* ── Page Header ── */}
-                    <div className="max-w-3xl mb-12">
+                    <div className="max-w-3xl mb-12 animate-fade-up">
                         <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
                             Work with the world&apos;s <span className="text-indigo-600">leading</span> companies
                         </h1>
@@ -272,7 +273,7 @@ export default function CompaniesPage() {
 
                     {/* ── Company Grid ── */}
                     {!loading && !error && paginated.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 reveal">
                             {paginated.map((company) => (
                                 <div
                                     key={company._id || company.id}
@@ -360,7 +361,7 @@ export default function CompaniesPage() {
                     )}
 
                     {/* ── CTA Banner ── */}
-                    <div className="mt-16 sm:mt-20 p-8 sm:p-10 md:p-14 bg-indigo-600 rounded-3xl sm:rounded-[3rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 md:gap-10 relative overflow-hidden">
+                    <div className="mt-16 sm:mt-20 p-8 sm:p-10 md:p-14 bg-indigo-600 rounded-3xl sm:rounded-[3rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 md:gap-10 relative overflow-hidden reveal">
                         <div className="relative z-10 text-center md:text-left">
                             <h2 className="text-2xl sm:text-3xl font-black mb-3">Hiring for your team?</h2>
                             <p className="text-indigo-100 text-base sm:text-lg max-w-xl leading-relaxed">
@@ -383,6 +384,7 @@ export default function CompaniesPage() {
                         </div>
                     </div>
 
+                </PageWrapper>
                 </div>
             </main>
 

@@ -7,6 +7,7 @@ import Footer from "../components/Footer/Footer";
 import Skeleton from "../components/common/Skeleton";
 import { Briefcase, MapPin, DollarSign, Clock, Bookmark, Trash2, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
+import PageWrapper from "../components/common/PageWrapper";
 
 export default function SavedJobsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -73,12 +74,13 @@ export default function SavedJobsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] animate-fade-in">
+    <div className="min-h-screen bg-[#f8fafc] animate-page-enter">
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pt-24 md:pt-32">
+        <PageWrapper>
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6 animate-fade-up">
           <div>
             <div className="flex items-center gap-2 mb-2">
                 <Bookmark className="w-5 h-5 text-indigo-600 animate-bounce" />
@@ -99,7 +101,7 @@ export default function SavedJobsPage() {
         </div>
 
         {/* Saved Jobs List */}
-        <div className="space-y-6">
+        <div className="space-y-6 reveal">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
@@ -197,19 +199,10 @@ export default function SavedJobsPage() {
             </div>
           )}
         </div>
+        </PageWrapper>
       </main>
 
       <Footer />
-
-      <style jsx global>{`
-        .animate-fade-in {
-          animation: fadeIn 0.5s ease-out;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

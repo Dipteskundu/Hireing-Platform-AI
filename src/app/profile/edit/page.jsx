@@ -273,81 +273,81 @@ export default function EditProfilePage() {
                     <form onSubmit={handleSubmit} className="space-y-8">
 
                         {/* Profile Photo Section */}
-                        <div className="bg-white  p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 premium-shadow">
+                        <div className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 premium-shadow">
                             <div className="flex flex-col items-center gap-6">
                                 <div className="relative group">
                                     <div onClick={() => fileInputRef.current.click()} className="cursor-pointer relative">
                                         <Avatar src={formData.photoURL} size="w-40 h-40" ring={true} className="shadow-xl" />
-                                        <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/70 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                        <div className="absolute inset-0 bg-slate-900/60 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
                                             <Camera className="w-8 h-8 text-white mb-1" />
                                             <span className="text-white text-[10px] font-black uppercase tracking-tighter">Change Photo</span>
                                         </div>
                                         {uploading && (
-                                            <div className="absolute inset-0 bg-white/80 dark:bg-slate-800/80 rounded-full flex items-center justify-center z-20">
-                                                <Loader2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                                            <div className="absolute inset-0 bg-white/80 rounded-full flex items-center justify-center z-20">
+                                                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
                                             </div>
                                         )}
                                     </div>
-                                    <button type="button" onClick={() => fileInputRef.current.click()} className="absolute bottom-2 right-2 p-3 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-lg  dark:hover:bg-indigo-600 transition-all active:scale-90 border-4 border-white dark:border-slate-800">
+                                    <button type="button" onClick={() => fileInputRef.current.click()} className="absolute bottom-2 right-2 p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-all active:scale-90 border-4 border-white">
                                         <Camera className="w-5 h-5" />
                                     </button>
                                     <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/jpeg,image/png,image/webp" />
                                 </div>
                                 <div className="text-center space-y-2">
-                                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-900">Profile Picture</h3>
-                                    <p className="text-slate-400 dark:text-slate-500 text-sm max-w-xs mx-auto">Upload a professional headshot. JPG, PNG or WebP. Max 5MB.</p>
+                                    <h3 className="text-lg font-bold text-slate-900">Profile Picture</h3>
+                                    <p className="text-slate-400 text-sm max-w-xs mx-auto">Upload a professional headshot. JPG, PNG or WebP. Max 5MB.</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Basic Info */}
-                        <div className="bg-white! bg-slate-800 p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 border-slate-700 premium-shadow space-y-6">
-                            <h2 className="text-xl font-black text-slate-900 text-slate-100 flex items-center gap-3">
-                                <User className="w-6 h-6 text-indigo-600 text-indigo-400" />
+                        <div className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 premium-shadow space-y-6">
+                            <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                                <User className="w-6 h-6 text-indigo-600" />
                                 Basic Information
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black  text-slate-400 text-slate-500 uppercase tracking-widest">Full Name *</label>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Full Name *</label>
                                     <div className="relative">
-                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 text-slate-500" />
-                                        <input required type="text" name="displayName" placeholder="Jason Wong" value={formData.displayName} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50  border border-slate-100 border-slate-600 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:ring-indigo-400 focus:bg-white focus:bg-slate-600 outline-none transition-all placeholder:text-slate-300 placeholder:text-slate-500 font-medium text-slate-900 text-slate-100" />
+                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input required type="text" name="displayName" placeholder="Jason Wong" value={formData.displayName} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all placeholder:text-slate-300 font-medium text-slate-900" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 text-slate-500 uppercase tracking-widest">Professional Title</label>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Professional Title</label>
                                     <div className="relative">
-                                        <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 text-slate-500" />
-                                        <input type="text" name="title" placeholder="Senior Software Engineer" value={formData.title} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50  border border-slate-100 border-slate-600 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:ring-indigo-400 focus:bg-white focus:bg-slate-600 outline-none transition-all placeholder:text-slate-300 placeholder:text-slate-500 font-medium text-slate-900 text-slate-100" />
+                                        <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input type="text" name="title" placeholder="Senior Software Engineer" value={formData.title} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all placeholder:text-slate-300 font-medium text-slate-900" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 text-slate-500 uppercase tracking-widest">Location</label>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Location</label>
                                     <div className="relative">
-                                        <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 text-slate-500" />
-                                        <input type="text" name="location" placeholder="San Francisco, CA" value={formData.location} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50  border border-slate-100 border-slate-600 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:ring-indigo-400 focus:bg-white focus:bg-slate-600 outline-none transition-all placeholder:text-slate-300 placeholder:text-slate-500 font-medium text-slate-900 text-slate-100" />
+                                        <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input type="text" name="location" placeholder="San Francisco, CA" value={formData.location} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all placeholder:text-slate-300 font-medium text-slate-900" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-400 text-slate-500 uppercase tracking-widest">Phone Number</label>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Phone Number</label>
                                     <div className="relative">
-                                        <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 text-slate-500" />
-                                        <input type="tel" name="phone" placeholder="+1 (555) 000-0000" value={formData.phone} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50  border border-slate-100 border-slate-600 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:ring-indigo-400 focus:bg-white focus:bg-slate-600 outline-none transition-all placeholder:text-slate-300 placeholder:text-slate-500 font-medium text-slate-900 text-slate-100" />
+                                        <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input type="tel" name="phone" placeholder="+1 (555) 000-0000" value={formData.phone} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all placeholder:text-slate-300 font-medium text-slate-900" />
                                     </div>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-400 text-slate-500 uppercase tracking-widest">Professional Summary</label>
-                                <textarea name="bio" rows="4" placeholder="Tell recruiters about your professional journey..." value={formData.bio} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50  border border-slate-100 border-slate-600 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:ring-indigo-400 focus:bg-white focus:bg-slate-600 outline-none transition-all placeholder:text-slate-300 placeholder:text-slate-500 font-medium resize-none text-slate-900 text-slate-100" />
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Professional Summary</label>
+                                <textarea name="bio" rows="4" placeholder="Tell recruiters about your professional journey..." value={formData.bio} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all placeholder:text-slate-300 font-medium resize-none text-slate-900" />
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-xs font-black text-slate-400 text-slate-500 uppercase tracking-widest">Core Skills</label>
-                                    <span className="text-[10px] font-bold text-slate-400 text-slate-500">SEPARATE WITH COMMAS</span>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Core Skills</label>
+                                    <span className="text-[10px] font-bold text-slate-400">SEPARATE WITH COMMAS</span>
                                 </div>
                                 <div className="relative">
-                                    <Award className="absolute left-5 top-5 w-4 h-4 text-slate-400 text-slate-500" />
-                                    <input type="text" name="skills" placeholder="React, Next.js, Node.js, Python..." value={formData.skills} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50  border border-slate-100 border-slate-600 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:ring-indigo-400 focus:bg-white focus:bg-slate-600 outline-none transition-all placeholder:text-slate-300 placeholder:text-slate-500 font-medium text-slate-900 text-slate-100" />
+                                    <Award className="absolute left-5 top-5 w-4 h-4 text-slate-400" />
+                                    <input type="text" name="skills" placeholder="React, Next.js, Node.js, Python..." value={formData.skills} onChange={handleChange} className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all placeholder:text-slate-300 font-medium text-slate-900" />
                                 </div>
                                 <p className="text-xs font-bold text-amber-600 mt-2 flex items-center gap-1">
                                     <AlertCircle className="w-4 h-4" /> Note: Adding new skills requires passing a verification test before applying to jobs.

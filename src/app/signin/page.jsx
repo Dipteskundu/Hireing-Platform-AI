@@ -120,7 +120,7 @@ export default function SignInPage() {
             </Link>
 
             {/* Left Side - Hero/Branding (Hidden on mobile) */}
-            <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative overflow-hidden flex-col justify-between p-16">
+            <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative overflow-hidden flex-col justify-between p-16 animate-slide-in-left">
                 <div className="relative z-10">
                     <Link href="/" className="flex items-center gap-2 group w-fit">
                         <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white premium-shadow transition-transform group-hover:rotate-6">
@@ -164,7 +164,7 @@ export default function SignInPage() {
             </div>
 
             {/* Right Side - Form */}
-            <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 relative">
+            <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 relative animate-slide-in-right">
                 <div className="w-full max-w-sm">
                     <div className="mb-10 text-center lg:text-left">
                         <h2 className="text-3xl font-black text-slate-900 mb-2">Sign In</h2>

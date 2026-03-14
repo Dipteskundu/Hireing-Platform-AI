@@ -13,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import PageWrapper from "../components/common/PageWrapper";
 
 const JOBS_PER_PAGE = 9;
 
@@ -256,8 +257,28 @@ export default function JobsPage() {
     const handleApply = async (job) => {
         if (!isAuthenticated) { router.push("/signin"); return; }
         
-        // Before creating an application or opening a modal, we redirect them to the Skill Gap Analysis page
-        router.push(`/skill-gap-analysis/${job._id}`);
+        try {
+            // Check verification first
+            const res = await fetch(`${apiBase}/api/jobs/${job._id}/pre-apply-check`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uid: user.uid })
+            });
+            const data = await res.json();
+            
+            if (data.allowed) {
+                // Verified: proceed to Skill Gap Analysis page
+                router.push(`/skill-gap-analysis/${job._id}`);
+            } else if (data.redirectTo) {
+                // Not verified: go to intro page
+                router.push(data.redirectTo);
+            } else {
+                setError(data.message || "Cannot apply at this time.");
+            }
+        } catch (err) {
+            console.error("Verification check failed:", err);
+            router.push(`/skill-gap-analysis/${job._id}`); // fallback
+        }
     };
 
     const handleSave = async (job) => {
@@ -345,9 +366,9 @@ export default function JobsPage() {
 
             <main className="pt-8 sm:pt-12 pb-24">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-
+                    <PageWrapper>
                     {/* ── Page Header ── */}
-                    <div className="mb-10">
+                    <div className="mb-10 animate-fade-up">
                         <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
                             Find your dream <span className="text-indigo-600">career</span>
                         </h1>
@@ -507,7 +528,7 @@ export default function JobsPage() {
 
                             {/* Job Cards */}
                             {!loading && !error && paginated.length > 0 && (
-                                <div className="space-y-5">
+                                <div className="space-y-5 reveal">
                                     {paginated.map((job) => (
                                         <div
                                             key={job._id}
@@ -591,6 +612,7 @@ export default function JobsPage() {
                             )}
                         </div>
                     </div>
+                    </PageWrapper>
                 </div>
             </main>
 

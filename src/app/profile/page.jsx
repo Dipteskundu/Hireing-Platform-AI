@@ -13,6 +13,7 @@ import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 import { useAuth } from "../lib/AuthContext";
 import Avatar from "../components/common/Avatar";
+import PageWrapper from "../components/common/PageWrapper";
 
 const Page = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -68,11 +69,12 @@ const Page = () => {
       <Navbar />
 
       <main className="pt-32 pb-24">
+        <PageWrapper>
         <div className="container mx-auto px-6 lg:px-24">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
 
             {/* Left Column: Profile Card */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 reveal">
               <div className="bg-white rounded-[2.5rem] border border-slate-100 premium-shadow p-8 lg:sticky lg:top-32">
                 <div className="flex flex-col items-center text-center space-y-6">
                   {/* Profile Image with Rank */}
@@ -126,7 +128,7 @@ const Page = () => {
             </div>
 
             {/* Right Column: Content */}
-            <div className="lg:col-span-2 space-y-12">
+            <div className="lg:col-span-2 space-y-12 reveal delay-150">
 
               {/* Conditional Content Based on Role */}
               {role === "candidate" ? (
@@ -307,6 +309,7 @@ const Page = () => {
             </div>
           </div>
         </div>
+        </PageWrapper>
       </main>
 
       <Footer />
