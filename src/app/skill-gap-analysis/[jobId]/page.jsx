@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/AuthContext";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
+import { API_BASE } from "../../lib/apiClient";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -22,7 +23,7 @@ export default function SkillGapAnalysisPage({ params }) {
   
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+  const apiBase = API_BASE;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

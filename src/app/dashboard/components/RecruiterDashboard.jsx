@@ -10,6 +10,7 @@ import { ref, onValue } from "firebase/database";
 import { rtdb } from "../../lib/firebaseClient";
 import Skeleton from "../../components/common/Skeleton";
 import { useScrollReveal } from "../../lib/useScrollReveal";
+import { API_BASE } from "../../lib/apiClient";
 
 function StatCard({ label, value, icon: Icon, color, bg }) {
     return (
@@ -84,7 +85,7 @@ export default function RecruiterDashboard({ user, data, loading }) {
         e.preventDefault();
         setPosting(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/jobs`, {
+            const res = await fetch(`${API_BASE}/api/jobs`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -114,7 +115,7 @@ export default function RecruiterDashboard({ user, data, loading }) {
             if (feedback === null) return;
         }
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/applications/${appId}/status`, {
+            await fetch(`${API_BASE}/api/applications/${appId}/status`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus, feedback }),

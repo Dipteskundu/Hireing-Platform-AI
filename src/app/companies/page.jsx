@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageWrapper from "../components/common/PageWrapper";
+import { API_BASE } from "../lib/apiClient";
 
 const COMPANIES_PER_PAGE = 9;
 
@@ -67,7 +68,7 @@ const INDUSTRIES = ["Technology", "Finance", "Healthcare", "Education", "E-comme
 export default function CompaniesPage() {
     const { user, isAuthenticated } = useAuth();
     const router = useRouter();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase = API_BASE;
 
     /* ── Data ── */
     const [companies, setCompanies] = useState([]);

@@ -14,11 +14,12 @@ import Footer from "../components/Footer/Footer";
 import { useAuth } from "../lib/AuthContext";
 import Avatar from "../components/common/Avatar";
 import PageWrapper from "../components/common/PageWrapper";
+import { API_BASE } from "../lib/apiClient";
 
 const Page = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+  const apiBase = API_BASE;
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, CheckCircle, ArrowRight, XCircle, Zap, Target } from "lucide-react";
+import { API_BASE } from "../../lib/apiClient";
 
 // ── Score Ring (CSS-only circular progress) ──────────────────
 function ScoreRing({ score }) {
@@ -84,7 +85,7 @@ export default function FitMapModal({ job, uid, onClose, onApply }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase = API_BASE;
 
     useEffect(() => {
         if (!job?._id || !uid) return;

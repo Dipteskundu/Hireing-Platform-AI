@@ -6,11 +6,12 @@ import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Clock, Send, ShieldAlert, CheckCircle2, MessageCircle } from "lucide-react";
+import { API_BASE } from "../../lib/apiClient";
 
 export default function CommunicationTestPage() {
   const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+  const apiBase = API_BASE;
 
   const [pageStatus, setPageStatus] = useState("loading"); // loading, testing, submitting, result, error, verified
   const [sessionId, setSessionId] = useState(null);

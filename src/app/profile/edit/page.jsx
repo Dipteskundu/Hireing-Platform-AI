@@ -11,11 +11,12 @@ import Footer from "../../components/Footer/Footer";
 import { User, Mail, MapPin, Phone, Briefcase, Award, Save, ArrowLeft, Camera, Loader2, CheckCircle, AlertCircle, Plus, X, GraduationCap, Code, Calendar, Globe } from "lucide-react";
 import Link from "next/link";
 import Avatar from "../../components/common/Avatar";
+import { API_BASE } from "../../lib/apiClient";
 
 export default function EditProfilePage() {
     const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
     const router = useRouter();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase = API_BASE;
 
     const [formData, setFormData] = useState({
         displayName: "",

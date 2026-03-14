@@ -20,11 +20,12 @@ import {
   BookOpen,
 } from "lucide-react";
 import PageWrapper from "../components/common/PageWrapper";
+import { API_BASE } from "../lib/apiClient";
 
 export default function SkillGapDetectionPage() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+  const apiBase = API_BASE;
 
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);

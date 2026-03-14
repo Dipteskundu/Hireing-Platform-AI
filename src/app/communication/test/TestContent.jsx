@@ -7,6 +7,7 @@ import { AlertCircle, ArrowRight, MessageSquare, Send } from "lucide-react";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import { useAuth } from "../../lib/AuthContext";
+import { API_BASE } from "../../lib/apiClient";
 
 export default function TestContent() {
   const searchParams = useSearchParams();
@@ -36,7 +37,7 @@ export default function TestContent() {
     const startSession = async () => {
       setStarting(true);
       setError("");
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+      const apiBase = API_BASE;
       try {
         const res = await fetch(`${apiBase}/api/communication/start`, {
           method: "POST",
@@ -73,7 +74,7 @@ export default function TestContent() {
 
     setSubmitting(true);
     setError("");
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase = API_BASE;
     try {
       const res = await fetch(`${apiBase}/api/communication/submit/${sessionId}`, {
         method: "POST",

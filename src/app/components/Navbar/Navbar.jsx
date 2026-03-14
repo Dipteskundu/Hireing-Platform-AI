@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Menu, X, Search, Bell, ChevronDown, User, Bookmark,
+  X, Search, Bell, ChevronDown, User, Bookmark,
   FileText, Settings, LogOut, LayoutDashboard, Lightbulb,
   Home, Briefcase, Building2, Info, ChevronRight, Zap,
 } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import Avatar from "../common/Avatar";
 import NotificationPanel from "../Notifications/NotificationPanel";
+import { API_BASE } from "../../lib/apiClient";
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,9 +47,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const apiBase =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    (typeof window !== "undefined" ? window.location.origin : "");
+  const apiBase = API_BASE;
 
   useEffect(() => {
     if (!isAuthenticated || !user?.uid) return;

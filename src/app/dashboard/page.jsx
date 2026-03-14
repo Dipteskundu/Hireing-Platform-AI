@@ -10,6 +10,7 @@ import Avatar from "../components/common/Avatar";
 import CandidateDashboard from "./components/CandidateDashboard";
 import RecruiterDashboard from "./components/RecruiterDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import { API_BASE } from "../lib/apiClient";
 
 const ROLE_CONFIG = {
     candidate: {
@@ -48,7 +49,7 @@ export default function Dashboard() {
             setLoading(true);
             try {
                 const profileRes = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/profile/${user.uid}`
+                    `${API_BASE}/api/auth/profile/${user.uid}`
                 );
                 const profileData = await profileRes.json();
                 const profile = profileData.data || {};
@@ -60,7 +61,7 @@ export default function Dashboard() {
                 else if (role === "recruiter") dashUrl = `/api/dashboard/recruiter/${user.uid}`;
                 else if (role === "admin") dashUrl = `/api/dashboard/admin`;
 
-                const dashRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${dashUrl}`);
+                const dashRes = await fetch(`${API_BASE}${dashUrl}`);
                 const dashJson = await dashRes.json();
                 setDashboardData(dashJson.data || null);
             } catch (err) {

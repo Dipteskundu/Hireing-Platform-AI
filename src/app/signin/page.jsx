@@ -7,6 +7,7 @@ import { useState } from "react";
 import { auth, googleProvider } from "../lib/firebaseClient";
 import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
 import { Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { API_BASE } from "../lib/apiClient";
 
 export default function SignInPage() {
     const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +25,7 @@ export default function SignInPage() {
 
     const router = useRouter();
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase = API_BASE;
 
     async function syncUserWithBackend(user) {
         try {

@@ -6,11 +6,12 @@ import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 import { AlertCircle, Clock, Send, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { API_BASE } from "../lib/apiClient";
 
 export default function SkillTestPage() {
     const { user, isAuthenticated, loading } = useAuth();
     const router = useRouter();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase = API_BASE;
 
     const [profile, setProfile] = useState(null);
     const [pageStatus, setPageStatus] = useState("loading"); // loading, selection, instruction, testing, submitting, result

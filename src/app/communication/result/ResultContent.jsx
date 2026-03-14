@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../lib/AuthContext";
 import { CheckCircle2, MessageSquare, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { API_BASE } from "../../lib/apiClient";
 
 export default function ResultContent() {
     const searchParams = useSearchParams();
@@ -31,7 +32,7 @@ export default function ResultContent() {
             return;
         }
 
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+        const apiBase = API_BASE;
         fetch(`${apiBase}/api/communication/result/${sessionId}`)
             .then((res) => res.json())
             .then((data) => {

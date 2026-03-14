@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bell, X, CheckCircle, CheckCheck, Briefcase, Eye, Star, Award, XCircle } from "lucide-react";
 import { ref, onChildAdded } from "firebase/database";
 import { rtdb } from "../../lib/firebaseClient";
+import { API_BASE } from "../../lib/apiClient";
 
 const TYPE_CONFIG = {
     application_viewed: { icon: Eye, color: "text-blue-500", bg: "bg-blue-50" },
@@ -57,9 +58,7 @@ export default function NotificationPanel({ uid, isOpen, onClose, setParentUnrea
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    const apiBase =
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        (typeof window !== "undefined" ? window.location.origin : "");
+    const apiBase = API_BASE;
 
     // Derive unreadCount directly during render, no effect needed
     const unreadCount = notifications.filter(n => !n.read).length;

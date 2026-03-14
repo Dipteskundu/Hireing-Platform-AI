@@ -6,6 +6,7 @@ import { Rocket, Mail, Lock, User, Eye, EyeOff, Github, Chrome, CheckCircle2, Ar
 import { useState } from "react";
 import { auth, googleProvider } from "../lib/firebaseClient";
 import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
+import { API_BASE } from "../lib/apiClient";
 
 export default function SignUpPage() {
     const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +19,7 @@ export default function SignUpPage() {
 
     const router = useRouter();
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+    const apiBase = API_BASE;
 
     async function syncUserWithBackend(user, selectedRole) {
         try {
