@@ -135,11 +135,13 @@ export default function RecruiterDashboard({ user, data, loading }) {
     e.preventDefault();
     setPosting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/jobs`, {
+      const res = await fetch(`${API_BASE}/api/jobs/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...jobForm,
+          recruiterEmail: user?.email || "",
+          recruiterUid: user?.uid || "",
           skills: jobForm.skills
             .split(",")
             .map((s) => s.trim())
@@ -148,7 +150,10 @@ export default function RecruiterDashboard({ user, data, loading }) {
       });
       const result = await res.json();
       if (result.success) {
-        setPostMsg({ type: "success", text: "Job posted successfully." });
+        setPostMsg({
+          type: "success",
+          text: "Job request submitted for admin approval.",
+        });
         setJobForm({
           title: "",
           company: "",
@@ -162,7 +167,7 @@ export default function RecruiterDashboard({ user, data, loading }) {
       } else {
         setPostMsg({
           type: "error",
-          text: result.message || "Failed to post job.",
+          text: result.message || "Failed to submit job request.",
         });
       }
     } catch {
