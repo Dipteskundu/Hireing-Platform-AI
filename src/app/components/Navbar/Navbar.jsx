@@ -248,8 +248,10 @@ export default function Navbar() {
                         <p className="text-[13px] font-bold text-slate-900 leading-tight line-clamp-1 max-w-[110px]">
                           {userDisplayName}
                         </p>
-                        <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide leading-tight">
-                          PRO MEMBER
+                        <p
+                          className={`text-[10px] font-semibold uppercase tracking-wide leading-tight ${user?.isLocalAdmin ? "text-amber-600" : "text-indigo-600"}`}
+                        >
+                          {user?.isLocalAdmin ? "ADMIN" : "PRO MEMBER"}
                         </p>
                       </div>
                       <Avatar
@@ -402,13 +404,29 @@ export default function Navbar() {
           >
             <span className="text-indigo-600"></span>
           </Link>
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-            aria-label="Close menu"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle (mobile drawer) */}
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            >
+              {mounted ? (
+                theme === "dark" ? (
+                  <span className="text-[16px]">🌙</span>
+                ) : (
+                  <span className="text-[16px]">☀️</span>
+                )
+              ) : null}
+            </button>
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content */}
@@ -428,7 +446,7 @@ export default function Navbar() {
                     {userDisplayName}
                   </p>
                   <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">
-                    Pro Member
+                    {user?.isLocalAdmin ? "Administrator" : "Pro Member"}
                   </p>
                 </div>
               </div>

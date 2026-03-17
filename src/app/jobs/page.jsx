@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
   AlertCircle,
   LogIn,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -145,6 +146,10 @@ export default function JobsPage() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const apiBase = API_BASE;
+  const adminEmails = ["admin@admin.com", "admin@manager.com"];
+  const isAdmin =
+    user?.isLocalAdmin ||
+    adminEmails.includes((user?.email || "").trim().toLowerCase());
 
   /* ── Data ─────────────────────────────────────── */
   const [jobs, setJobs] = useState([]);
@@ -366,6 +371,29 @@ export default function JobsPage() {
     router.push("/resume");
   };
 
+  const handleDeleteJob = async (job) => {
+    if (!isAdmin) return;
+    const confirmed = window.confirm(
+      `Delete job \"${job.title || "Untitled"}\" from ${job.company || "Unknown Company"}?`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${apiBase}/api/jobs/${job._id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Failed to delete job");
+      }
+      setJobs((prev) => prev.filter((j) => j._id !== job._id));
+      setInfoMessage("Job removed successfully.");
+      setTimeout(() => setInfoMessage(""), 3000);
+    } catch (err) {
+      setError(err.message || "Could not delete the job.");
+    }
+  };
+
   /* ── Sidebar filter panel (shared desktop + mobile) ── */
   const SidebarFilters = () => (
     <div className="space-y-8">
@@ -469,6 +497,15 @@ export default function JobsPage() {
                 perfectly matches your skills and ambitions.
               </p>
             </div>
+
+            {isAuthenticated && isAdmin && (
+              <div className="mb-8 flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-800 font-medium">
+                  Admin mode: you can remove jobs directly from this page.
+                </p>
+              </div>
+            )}
 
             {/* ── Search + Location Bar ── */}
             <div
@@ -721,7 +758,7 @@ export default function JobsPage() {
                           </div>
                           {/* Right */}
                           <div className="flex items-center gap-2 shrink-0">
-                            {isAuthenticated && (
+                            {isAuthenticated && !isAdmin && (
                               <button
                                 onClick={() => setFitJob(job)}
                                 className="px-4 py-2.5 border border-indigo-200 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-all text-xs"
@@ -730,19 +767,30 @@ export default function JobsPage() {
                                 Check Fit
                               </button>
                             )}
-                            <button
-                              onClick={() => handleApply(job)}
-                              className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all active:scale-95"
-                            >
-                              Apply Now
-                            </button>
-                            <button
-                              onClick={() => handleSave(job)}
-                              className="p-2.5 border border-slate-100 rounded-xl hover:bg-amber-50 hover:border-amber-200 transition-colors group/star"
-                              aria-label="Save job"
-                            >
-                              <Star className="w-4.5 w-[18px] h-[18px] text-slate-300 group-hover/star:text-amber-400 transition-colors" />
-                            </button>
+                            {isAdmin ? (
+                              <button
+                                onClick={() => handleDeleteJob(job)}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-600 hover:text-white transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" /> Delete Job
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleApply(job)}
+                                  className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all active:scale-95"
+                                >
+                                  Apply Now
+                                </button>
+                                <button
+                                  onClick={() => handleSave(job)}
+                                  className="p-2.5 border border-slate-100 rounded-xl hover:bg-amber-50 hover:border-amber-200 transition-colors group/star"
+                                  aria-label="Save job"
+                                >
+                                  <Star className="w-4.5 w-[18px] h-[18px] text-slate-300 group-hover/star:text-amber-400 transition-colors" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
 
