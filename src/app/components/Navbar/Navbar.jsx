@@ -9,6 +9,7 @@ import {
   Bell,
   ChevronDown,
   User,
+  Users,
   Bookmark,
   FileText,
   Settings,
@@ -21,25 +22,34 @@ import {
   Info,
   ChevronRight,
   Zap,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { useTheme } from "../../lib/ThemeContext";
 import Avatar from "../common/Avatar";
 import NotificationPanel from "../Notifications/NotificationPanel";
 import { API_BASE } from "../../lib/apiClient";
+import apiClient from "../../lib/apiClient";
 
-export default function Navbar() {
+export default function Navbar({ isDashboard = false }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [clientMounted, setClientMounted] = useState(false);
   const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, claims, role } = useAuth();
   const { theme, toggleTheme, mounted } = useTheme();
+  const [profileRoleLabel, setProfileRoleLabel] = useState(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setClientMounted(true), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -65,17 +75,13 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const apiBase = API_BASE;
-
   useEffect(() => {
     if (!isAuthenticated || !user?.uid) return;
     const fetchUnreadCount = async () => {
       try {
-        const res = await fetch(
-          new URL(`/api/notifications/${user.uid}`, apiBase).toString(),
+        const { data: json } = await apiClient.get(
+          `/api/notifications/${user.uid}`,
         );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
         if (json.success && json.data)
           setUnreadCount(json.data.unreadCount || 0);
       } catch (err) {
@@ -85,59 +91,164 @@ export default function Navbar() {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [apiBase, isAuthenticated, user?.uid]);
+  }, [isAuthenticated, user?.uid]);
 
-  const navLinks = [
+  // Fetch user profile from backend to determine role/label (Recruiter / Pro member etc.)
+  useEffect(() => {
+    if (!isAuthenticated || !user?.uid) return;
+    // If token claims indicate admin, prefer that immediately
+    if (claims && claims.role === "admin") {
+      // defer to avoid sync setState inside effect
+      const tt = setTimeout(() => setProfileRoleLabel("Admin"), 0);
+      return () => clearTimeout(tt);
+    }
+
+    let mountedFlag = true;
+    const fetchProfile = async () => {
+      try {
+        const baseUrl = API_BASE || "";
+        const endpoint = baseUrl
+          ? `${baseUrl.replace(/\/$/, "")}/api/auth/profile/${user.uid}`
+          : `/api/auth/profile/${user.uid}`;
+        const res = await fetch(endpoint);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json.success || !json.data) return;
+        const profile = json.data;
+        let label = "Member";
+        if (profile.role === "recruiter" || profile.role === "employer") {
+          label = "Recruiter";
+        } else if (profile.isPro) {
+          label = "Pro Member";
+        } else if (profile.role === "admin") {
+          label = "Admin";
+        }
+        if (mountedFlag) setProfileRoleLabel(label);
+      } catch (err) {
+        // ignore profile fetch errors
+      }
+    };
+    fetchProfile();
+    return () => {
+      mountedFlag = false;
+    };
+  }, [isAuthenticated, user?.uid, claims]);
+
+  const baseNavLinks = [
     { name: "Home", href: "/", icon: Home },
     { name: "Find Jobs", href: "/jobs", icon: Briefcase },
     { name: "Companies", href: "/companies", icon: Building2 },
     { name: "About Us", href: "/about", icon: Info },
   ];
 
-  const userMenuItems = [
-    {
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      href: "/dashboard",
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-    },
-    {
-      icon: User,
-      label: "My Profile",
-      href: "/profile",
-      color: "text-violet-600",
-      bg: "bg-violet-50",
-    },
-    {
-      icon: Settings,
-      label: "Edit Profile",
-      href: "/profile/edit",
-      color: "text-slate-600",
-      bg: "bg-slate-100",
-    },
-    {
-      icon: Bookmark,
-      label: "Saved Jobs",
-      href: "/saved-jobs",
-      color: "text-amber-600",
-      bg: "bg-amber-50",
-    },
-    {
-      icon: FileText,
-      label: "My Applications",
-      href: "/applications",
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-    },
-    {
-      icon: Lightbulb,
-      label: "Skill Gap Detection",
-      href: "/skill-gap-detection",
-      color: "text-orange-600",
-      bg: "bg-orange-50",
-    },
-  ];
+  const navLinks = (() => {
+    if (isAuthenticated && role === "candidate") {
+      return [
+        ...baseNavLinks.slice(0, 2),
+        {
+          name: "My Applications",
+          href: "/applications",
+          icon: FileText,
+        },
+        ...baseNavLinks.slice(2),
+      ];
+    }
+    return baseNavLinks;
+  })();
+
+  const getRoleBasedMenuItems = () => {
+    const commonItems = [
+      {
+        icon: LayoutDashboard,
+        label: "Dashboard",
+        href: `/dashboard/${role || "candidate"}`,
+        color: "text-indigo-600",
+        bg: "bg-indigo-50",
+      },
+      {
+        icon: User,
+        label: "My Profile",
+        href: "/profile",
+        color: "text-violet-600",
+        bg: "bg-violet-50",
+      },
+    ];
+
+    if (role === "candidate") {
+      return [
+        ...commonItems,
+        {
+          icon: FileText,
+          label: "My Applications",
+          href: "/applications",
+          color: "text-emerald-600",
+          bg: "bg-emerald-50",
+        },
+        {
+          icon: Bookmark,
+          label: "Saved Jobs",
+          href: "/saved-jobs",
+          color: "text-amber-600",
+          bg: "bg-amber-50",
+        },
+        {
+          icon: Lightbulb,
+          label: "Skill Gap Detection",
+          href: "/skill-gap-detection",
+          color: "text-orange-600",
+          bg: "bg-orange-50",
+        },
+      ];
+    }
+
+    if (role === "recruiter") {
+      return [
+        ...commonItems,
+        {
+          icon: Calendar,
+          label: "Interviews",
+          href: "/dashboard/recruiter/interviews",
+          color: "text-violet-600",
+          bg: "bg-violet-50",
+        },
+      ];
+    }
+
+    if (role === "admin") {
+      return [
+        ...commonItems,
+        {
+          icon: Users,
+          label: "All Users",
+          href: "/dashboard/admin/users",
+          color: "text-slate-600",
+          bg: "bg-slate-100",
+        },
+        {
+          icon: Settings,
+          label: "Platform Settings",
+          href: "/dashboard/admin/settings",
+          color: "text-indigo-600",
+          bg: "bg-indigo-50",
+        },
+      ];
+    }
+
+    return commonItems;
+  };
+
+  const userMenuItems = getRoleBasedMenuItems();
+
+  const isAdmin =
+    (claims && claims.role === "admin") ||
+    user?.role === "admin" ||
+    (user && user.email === "admin@manager.com");
+
+  const filteredUserMenuItems = userMenuItems.filter((it) => {
+    if (!isAdmin) return true;
+    // hide these items for admin users
+    return !["My Applications", "Skill Gap Detection"].includes(it.label);
+  });
 
   const userDisplayName =
     user?.displayName || user?.email?.split("@")[0] || "User";
@@ -147,13 +258,35 @@ export default function Navbar() {
     if (href) router.push(href);
   };
 
+  // Search handling
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const submitSearch = (q) => {
+    const term = (q || searchQuery || "").trim();
+    if (!term) return;
+    // Navigate to jobs page with search param
+    router.push(`/jobs?search=${encodeURIComponent(term)}`);
+    setSearchQuery("");
+    setSearchOpen(false);
+    setMobileOpen(false);
+  };
+
+  const onKeyDownSearch = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitSearch();
+    }
+  };
+
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
+          isDashboard ? "md:left-64" : ""
+        } ${
           scrolled
-            ? "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] border-b border-slate-100"
-            : "bg-white border-b border-slate-100"
+            ? "bg-white/80 backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+            : "bg-white"
         }`}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -187,8 +320,12 @@ export default function Navbar() {
 
             {/* Right Side */}
             <div className="flex items-center gap-3 ml-auto">
-              {/* Logged Out */}
-              {!isAuthenticated && (
+              {/* Auth-dependent UI — only render after client mount to avoid hydration mismatch */}
+              {!clientMounted ? (
+                /* Placeholder matching logged-out layout to keep stable width */
+                <div className="hidden md:flex items-center gap-2 w-52 h-9" />
+              ) : !isAuthenticated ? (
+                /* Logged Out */
                 <>
                   <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 hover:border-slate-300 focus-within:border-indigo-400 focus-within:bg-white transition-all w-52">
                     <Search className="w-4 h-4 text-slate-400 shrink-0" />
@@ -196,6 +333,9 @@ export default function Navbar() {
                       type="text"
                       placeholder="Search jobs or skills..."
                       className="bg-transparent text-[13px] text-slate-700 placeholder-slate-400 outline-none w-full"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={onKeyDownSearch}
                     />
                   </div>
                   <Link
@@ -211,10 +351,8 @@ export default function Navbar() {
                     Sign Up
                   </Link>
                 </>
-              )}
-
-              {/* Logged In */}
-              {isAuthenticated && (
+              ) : (
+                /* Logged In */
                 <>
                   <button
                     onClick={() => setSearchOpen((v) => !v)}
@@ -249,7 +387,9 @@ export default function Navbar() {
                           {userDisplayName}
                         </p>
                         <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide leading-tight">
-                          PRO MEMBER
+                          {profileRoleLabel
+                            ? profileRoleLabel.toUpperCase()
+                            : "PRO MEMBER"}
                         </p>
                       </div>
                       <Avatar
@@ -282,20 +422,22 @@ export default function Navbar() {
                             </div>
                           </div>
                         </div>
-                        {userMenuItems.map(({ icon: Icon, label, href }) => (
-                          <button
-                            key={label}
-                            type="button"
-                            onClick={() => {
-                              setProfileOpen(false);
-                              router.push(href);
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                          >
-                            <Icon className="w-4 h-4 text-slate-400" />
-                            {label}
-                          </button>
-                        ))}
+                        {filteredUserMenuItems.map(
+                          ({ icon: Icon, label, href }) => (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => {
+                                setProfileOpen(false);
+                                router.push(href);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                              <Icon className="w-4 h-4 text-slate-400" />
+                              {label}
+                            </button>
+                          ),
+                        )}
                         <div className="border-t border-slate-100 mt-1 pt-1">
                           <button
                             type="button"
@@ -337,7 +479,7 @@ export default function Navbar() {
               <button
                 onClick={toggleTheme}
                 aria-label="Toggle theme"
-                className="hidden md:flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               >
                 {mounted ? (
                   theme === "dark" ? (
@@ -362,9 +504,16 @@ export default function Navbar() {
                   type="text"
                   placeholder="Search jobs, companies, or skills..."
                   className="bg-transparent text-[14px] text-slate-700 placeholder-slate-400 outline-none w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={onKeyDownSearch}
                 />
                 <button
-                  onClick={() => setSearchOpen(false)}
+                  onClick={() => {
+                    // close or submit depending on whether a query exists
+                    if (searchQuery.trim()) submitSearch(searchQuery);
+                    else setSearchOpen(false);
+                  }}
                   className="text-slate-400 hover:text-slate-700"
                 >
                   <X className="w-4 h-4" />
@@ -402,13 +551,29 @@ export default function Navbar() {
           >
             <span className="text-indigo-600"></span>
           </Link>
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-            aria-label="Close menu"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle (mobile drawer) */}
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            >
+              {mounted ? (
+                theme === "dark" ? (
+                  <span className="text-[16px]">🌙</span>
+                ) : (
+                  <span className="text-[16px]">☀️</span>
+                )
+              ) : null}
+            </button>
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content */}
@@ -428,7 +593,7 @@ export default function Navbar() {
                     {userDisplayName}
                   </p>
                   <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">
-                    Pro Member
+                    {profileRoleLabel || "Pro Member"}
                   </p>
                 </div>
               </div>
@@ -538,7 +703,7 @@ export default function Navbar() {
           )}
 
           {/* Skill Test Promo (logged in) */}
-          {isAuthenticated && (
+          {isAuthenticated && role === "candidate" && (
             <div className="mx-4 mt-5">
               <button
                 onClick={() => closeMobile("/skill-test")}

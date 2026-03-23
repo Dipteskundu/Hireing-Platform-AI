@@ -7,6 +7,7 @@ import Footer from "../../components/Footer/Footer";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Clock, Send, ShieldAlert, CheckCircle2, MessageCircle } from "lucide-react";
 import { API_BASE } from "../../lib/apiClient";
+import apiClient from "../../lib/apiClient";
 
 export default function CommunicationTestPage() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -32,22 +33,14 @@ export default function CommunicationTestPage() {
     if (!loading && !isAuthenticated) router.push("/signin");
   }, [loading, isAuthenticated, router]);
 
-  // Start the test session on mount
-  useEffect(() => {
-    if (!loading && isAuthenticated && user) {
-      startSession();
-    }
-  }, [loading, isAuthenticated, user]); // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Start the test session on mount (moved below startSession declaration)
 
-  const startSession = async () => {
+  async function startSession() {
     setPageStatus("loading");
     try {
-      const res = await fetch(`${apiBase}/api/verification/communication/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidateId: user.uid }),
+      const { data } = await apiClient.post("/api/verification/communication/start", {
+        candidateId: user.uid,
       });
-      const data = await res.json();
 
       if (data.alreadyVerified) {
         setPageStatus("verified");
@@ -60,7 +53,7 @@ export default function CommunicationTestPage() {
         return;
       }
 
-      if (res.ok && data.success) {
+      if (data.success) {
         setSessionId(data.sessionId);
         setQuestions(data.questions);
         const initAnswers = {};
@@ -79,6 +72,14 @@ export default function CommunicationTestPage() {
     }
   };
 
+  // Start the test session on mount (defer to avoid sync setState in effect)
+  useEffect(() => {
+    if (!loading && isAuthenticated && user) {
+      const t = setTimeout(() => startSession(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [loading, isAuthenticated, user]);  
+
   const handleSubmit = async () => {
     setPageStatus("submitting");
     const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
@@ -86,13 +87,11 @@ export default function CommunicationTestPage() {
       answer: answer.trim(),
     }));
     try {
-      const res = await fetch(`${apiBase}/api/verification/communication/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, answers: formattedAnswers }),
+      const { data } = await apiClient.post("/api/verification/communication/submit", {
+        sessionId,
+        answers: formattedAnswers,
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setResultData(data);
         setPageStatus("result");
       } else {
@@ -110,12 +109,12 @@ export default function CommunicationTestPage() {
   useEffect(() => {
     if (pageStatus !== "testing") return;
     if (timeLeft <= 0) {
-      handleSubmit();
-      return;
+      const tt = setTimeout(() => handleSubmit(), 0);
+      return () => clearTimeout(tt);
     }
     const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(id);
-  }, [pageStatus, timeLeft]); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageStatus, timeLeft]);  
 
   // Anti-cheating tab visibility
   useEffect(() => {
@@ -127,11 +126,6 @@ export default function CommunicationTestPage() {
     document.addEventListener("visibilitychange", handler);
     return () => document.removeEventListener("visibilitychange", handler);
   }, [pageStatus]);
-
-  const preventCopyPaste = (e) => {
-    e.preventDefault();
-    setWarnMsg("Copying and pasting is disabled during the test.");
-  };
 
   if (loading || pageStatus === "loading") {
     return (
@@ -226,12 +220,10 @@ export default function CommunicationTestPage() {
                   <textarea
                     value={answers[q.id] || ""}
                     onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    onCopy={preventCopyPaste}
-                    onPaste={preventCopyPaste}
                     disabled={pageStatus === "submitting"}
                     placeholder="Write your professional response here..."
                     rows="6"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all resize-y placeholder:text-slate-400"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all resize-y placeholder:text-slate-400 select-text"
                   />
                 </div>
               ))}

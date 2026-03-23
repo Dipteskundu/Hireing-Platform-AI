@@ -14,6 +14,9 @@ import {
   Sparkles,
   UserRound,
   X,
+  ChevronDown,
+  ArrowRight,
+  Compass,
 } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { API_BASE } from "../../lib/apiClient";
@@ -34,119 +37,26 @@ const actionIconMap = {
   "/profile": UserRound,
 };
 
-const defaultReply = {
-  text: "I can help you move around SkillMatch AI. Ask about jobs, resume upload, tests, dashboard, companies, or profile settings.",
-  actions: assistantQuickActions.slice(0, 4),
-};
-
-function getFallbackReply(input) {
-  const normalizedInput = String(input || "").toLowerCase();
-
-  if (
-    normalizedInput.includes("hello") ||
-    normalizedInput.includes("hi") ||
-    normalizedInput.includes("hey")
-  ) {
-    return {
-      text: "Hey! I can help with jobs, resume upload, recruiter actions, and platform navigation. What do you want to do first?",
-      actions: assistantQuickActions.slice(0, 4),
-    };
-  }
-
-  if (
-    normalizedInput.includes("how are you") ||
-    normalizedInput.includes("how r u") ||
-    normalizedInput.includes("how you")
-  ) {
-    return {
-      text: "I’m good and ready to help. Ask me about finding jobs, skill-gap checks, profile updates, or recruiter workflows.",
-      actions: assistantQuickActions.slice(0, 4),
-    };
-  }
-
-  if (normalizedInput.includes("thank") || normalizedInput.includes("thanks")) {
-    return {
-      text: "You’re welcome. I can guide your next action step-by-step.",
-      actions: assistantQuickActions.slice(0, 3),
-    };
-  }
-
-  if (
-    normalizedInput.includes("job") ||
-    normalizedInput.includes("role") ||
-    normalizedInput.includes("search")
-  ) {
-    return {
-      text: "Start from the jobs page to browse openings and compare role requirements.",
-      actions: assistantQuickActions.filter((action) =>
-        ["/jobs", "/skill-gap-detection"].includes(action.href),
-      ),
-    };
-  }
-
-  if (
-    normalizedInput.includes("resume") ||
-    normalizedInput.includes("cv") ||
-    normalizedInput.includes("upload")
-  ) {
-    return {
-      text: "Use the resume page to upload your file, then continue to skill-gap detection for a role-focused plan.",
-      actions: assistantQuickActions.filter((action) =>
-        ["/resume", "/skill-gap-detection", "/profile"].includes(action.href),
-      ),
-    };
-  }
-
-  if (
-    normalizedInput.includes("test") ||
-    normalizedInput.includes("assessment") ||
-    normalizedInput.includes("prepare")
-  ) {
-    return {
-      text: "Use skill test to evaluate your current level, then check skill-gap detection for what to improve next.",
-      actions: assistantQuickActions.filter((action) =>
-        ["/skill-test", "/skill-gap-detection", "/dashboard"].includes(
-          action.href,
-        ),
-      ),
-    };
-  }
-
-  if (
-    normalizedInput.includes("company") ||
-    normalizedInput.includes("employer") ||
-    normalizedInput.includes("recruiter")
-  ) {
-    return {
-      text: "You can browse companies or jump into dashboard workflows for hiring and candidate activity.",
-      actions: assistantQuickActions.filter((action) =>
-        ["/companies", "/dashboard", "/jobs"].includes(action.href),
-      ),
-    };
-  }
-
-  if (
-    normalizedInput.includes("profile") ||
-    normalizedInput.includes("account") ||
-    normalizedInput.includes("dashboard")
-  ) {
-    return {
-      text: "Your profile manages account details while dashboard is the main hub for activity and progress.",
-      actions: assistantQuickActions.filter((action) =>
-        ["/profile", "/dashboard"].includes(action.href),
-      ),
-    };
-  }
-
-  return defaultReply;
-}
-
 export default function Chatbot() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, claims } = useAuth();
   const role = determineRole(user);
   const roleActions =
     assistantQuickActionsByRole[role] || assistantQuickActionsByRole.guest;
+
+  const isAdmin =
+    (claims && claims.role === "admin") ||
+    user?.role === "admin" ||
+    (user && user.email === "admin@manager.com");
+
+  const filteredRoleActions = isAdmin
+    ? roleActions.filter(
+        (a) =>
+          !["/resume", "/skill-gap-detection", "/applications"].includes(
+            a.href,
+          ),
+      )
+    : roleActions;
 
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -155,59 +65,56 @@ export default function Chatbot() {
     {
       id: "welcome",
       role: "assistant",
-      text: "Hi, I’m SkillMatch AI assistant. I can answer quick questions and take you to the right page anywhere in the app.",
-      actions: assistantQuickActions.slice(0, 3),
+      text: "Hello! I'm your SkillMatch AI Assistant. I can help you navigate the platform, find jobs, or answer any questions you have.",
+      actions: filteredRoleActions.slice(0, 3),
     },
   ]);
 
   const scrollRef = useRef(null);
   const messageIdRef = useRef(1);
-
-  useEffect(() => {
-    setMessages((current) => {
-      if (!current.length || current[0].id !== "welcome") {
-        return current;
-      }
-      const next = [...current];
-      next[0] = { ...next[0], actions: roleActions.slice(0, 3) };
-      return next;
-    });
-  }, [roleActions]);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (!open || !scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, open]);
 
-  const askAssistantApi = useCallback(async (prompt) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-    try {
-      const response = await fetch(`${API_BASE}/api/assistant`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-        signal: controller.signal,
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(
-          payload?.error || payload?.message || "Assistant request failed",
-        );
-      }
-
-      const assistantText = String(payload?.assistant || "").trim();
-      if (!assistantText) {
-        throw new Error("Assistant returned empty answer");
-      }
-
-      return assistantText;
-    } finally {
-      clearTimeout(timeoutId);
+  // Auto-focus input when opening
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current.focus(), 100);
     }
-  }, []);
+  }, [open]);
+
+  const askAssistantApi = useCallback(
+    async (prompt) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/assistant`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            userId: user?.uid,
+            userEmail: user?.email,
+            userRole: role,
+          }),
+          signal: controller.signal,
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok)
+          throw new Error(
+            payload?.error || payload?.message || "Assistant failed",
+          );
+        return String(payload?.assistant || "").trim();
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    },
+    [user?.uid, user?.email, role],
+  );
 
   const submitPrompt = useCallback(
     async (rawPrompt) => {
@@ -225,49 +132,33 @@ export default function Chatbot() {
 
       try {
         const assistantText = await askAssistantApi(prompt);
+        if (!assistantText) throw new Error("empty");
         setMessages((current) => [
           ...current,
           {
             id: `${nextId}-assistant`,
             role: "assistant",
             text: assistantText,
-            actions: roleActions,
+            actions: [],
           },
         ]);
       } catch {
-        const fallback = getFallbackReply(prompt);
+        // Always provide a helpful response even on error
         setMessages((current) => [
           ...current,
           {
             id: `${nextId}-assistant`,
             role: "assistant",
-            text: `${fallback.text}\n\n(Using fallback mode right now — check server AI key config for best answers.)`,
-            actions: fallback.actions || roleActions,
+            text: "I'm here to help! I can answer questions about jobs, your applications, interviews, resume tips, or help you navigate the platform. What would you like to know?",
+            actions: [],
           },
         ]);
       } finally {
         setIsResponding(false);
       }
     },
-    [askAssistantApi, isResponding, roleActions],
+    [askAssistantApi, isResponding],
   );
-
-  useEffect(() => {
-    function handleAssistantOpen(event) {
-      setOpen(true);
-      const prompt = String(event.detail?.prompt || "").trim();
-      if (!prompt) return;
-      submitPrompt(prompt);
-    }
-
-    window.addEventListener("skillmatch:assistant-open", handleAssistantOpen);
-    return () => {
-      window.removeEventListener(
-        "skillmatch:assistant-open",
-        handleAssistantOpen,
-      );
-    };
-  }, [submitPrompt]);
 
   const visibleQuickPrompts = useMemo(() => assistantPrompts.slice(0, 4), []);
 
@@ -277,26 +168,35 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-end px-4 pb-3 sm:px-6 sm:pb-4">
-      <div className="pointer-events-auto flex max-w-md flex-col items-end gap-3">
+    <div className="fixed inset-x-0 bottom-0 z-50 flex justify-end px-4 pb-4 sm:px-6 sm:pb-5 pointer-events-none">
+      <div className="pointer-events-auto w-full max-w-[400px] flex flex-col items-end gap-3">
         {open && (
-          <section
-            className="relative flex w-[min(95vw,26rem)] max-w-full flex-col overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/80 shadow-[0_40px_120px_-30px_rgba(15,23,42,0.45)] ring-1 ring-slate-200/80 backdrop-blur-xl animate-float-in"
-            style={{ maxHeight: "calc(100dvh - 7rem)" }}
-          >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-indigo-100/70 via-fuchsia-50/60 to-transparent" />
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="absolute right-3 top-3 z-10 rounded-full border border-white/90 bg-white/85 p-2 text-slate-500 shadow-sm transition-all hover:text-slate-700"
-              aria-label="Close assistant"
-            >
-              <X className="h-4 w-4" />
-            </button>
+          <div className="w-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            {/* Header - Clean and minimal */}
+            <div className="bg-slate-900 px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-indigo-500 rounded-lg flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold text-sm">
+                    SkillMatch AI
+                  </h3>
+                  <p className="text-slate-400 text-xs">Online</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
+            {/* Messages */}
             <div
               ref={scrollRef}
-              className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-12"
+              className="h-[320px] overflow-y-auto px-4 py-4 space-y-4 bg-slate-50"
             >
               {messages.map((message) => (
                 <div
@@ -304,126 +204,112 @@ export default function Chatbot() {
                   className={`flex ${message.role === "assistant" ? "justify-start" : "justify-end"}`}
                 >
                   <div
-                    className={`max-w-[88%] rounded-3xl px-4 py-3.5 shadow-sm backdrop-blur ${
+                    className={`max-w-[85%] rounded-xl px-4 py-3 ${
                       message.role === "assistant"
-                        ? "border border-slate-200/70 bg-white/90 text-slate-800"
-                        : "bg-linear-to-br from-slate-900 via-indigo-700 to-indigo-600 text-white"
+                        ? "bg-white border border-slate-200 text-slate-800"
+                        : "bg-indigo-600 text-white"
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      {message.role === "assistant" && (
-                        <span className="mt-0.5 rounded-full border border-indigo-100 bg-linear-to-br from-indigo-50 to-white p-1.5 text-indigo-600">
-                          <Bot className="h-4 w-4" />
+                    {message.role === "assistant" && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Bot className="w-4 h-4 text-indigo-500" />
+                        <span className="text-xs font-medium text-slate-500">
+                          AI Assistant
                         </span>
-                      )}
-
-                      <div className="space-y-3">
-                        <p className="text-sm leading-6 whitespace-pre-line">
-                          {message.text}
-                        </p>
-                        {message.actions?.length ? (
-                          <div className="space-y-2">
-                            {message.actions.map((action) => {
-                              const Icon =
-                                actionIconMap[action.href] || ChevronRight;
-
-                              return (
-                                <button
-                                  key={`${message.id}-${action.href}`}
-                                  type="button"
-                                  onClick={() => handleActionClick(action.href)}
-                                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 text-left text-slate-700 shadow-[0_8px_24px_-16px_rgba(15,23,42,0.45)] transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-indigo-50/60 hover:text-indigo-700"
-                                >
-                                  <span className="flex items-center gap-3">
-                                    <span className="rounded-xl border border-slate-200 bg-slate-50/90 p-2 text-slate-700">
-                                      <Icon className="h-4 w-4" />
-                                    </span>
-                                    <span>
-                                      <span className="block text-sm font-semibold">
-                                        {action.label}
-                                      </span>
-                                      <span className="block text-xs text-slate-500">
-                                        {action.description}
-                                      </span>
-                                    </span>
-                                  </span>
-                                  <ChevronRight className="h-4 w-4" />
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : null}
                       </div>
-                    </div>
+                    )}
+                    <p className="text-sm leading-relaxed">{message.text}</p>
+
+                    {message.actions?.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {message.actions.slice(0, 2).map((action) => (
+                          <button
+                            key={action.href}
+                            onClick={() => handleActionClick(action.href)}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-slate-100 hover:bg-indigo-50 rounded-lg text-left transition-colors group"
+                          >
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">
+                              {action.label}
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
 
               {isResponding && (
                 <div className="flex justify-start">
-                  <div className="max-w-[88%] rounded-3xl border border-slate-200/70 bg-white/90 px-4 py-3.5 text-sm text-slate-600 shadow-sm">
-                    Assistant is thinking...
+                  <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-100" />
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200" />
+                    </div>
+                    <span className="text-sm text-slate-500">Typing...</span>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur">
-              <div className="mb-3 flex flex-wrap gap-2">
-                {visibleQuickPrompts.map((prompt) => (
+            {/* Input */}
+            <div className="bg-white border-t border-slate-200 p-4">
+              <div className="flex flex-wrap gap-2 mb-3">
+                {visibleQuickPrompts.map((p) => (
                   <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => submitPrompt(prompt)}
-                    className="rounded-full border border-slate-200/90 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-indigo-200 hover:bg-indigo-50/80 hover:text-indigo-700"
+                    key={p}
+                    onClick={() => submitPrompt(p)}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 rounded-full text-xs font-medium text-slate-600 hover:text-indigo-600 transition-colors"
                   >
-                    {prompt}
+                    {p}
                   </button>
                 ))}
               </div>
-
               <form
-                onSubmit={(event) => {
-                  event.preventDefault();
+                onSubmit={(e) => {
+                  e.preventDefault();
                   submitPrompt(input);
                 }}
-                className="flex items-center gap-2 rounded-[1.25rem] border border-slate-200/90 bg-white/85 p-2 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.45)] focus-within:border-indigo-300 focus-within:bg-white"
+                className="flex gap-2"
               >
                 <input
+                  ref={inputRef}
                   value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Ask where to go, what to use, or what to do next"
-                  disabled={isResponding}
-                  className="min-w-0 flex-1 bg-transparent px-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 px-4 py-2.5 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
                 <button
                   type="submit"
-                  disabled={isResponding}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm transition-all hover:scale-105 hover:bg-indigo-700 disabled:opacity-70"
-                  aria-label="Send message"
+                  disabled={!input.trim() || isResponding}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl transition-colors"
                 >
-                  <Send className="h-4 w-4" />
+                  <Send className="w-4 h-4" />
                 </button>
               </form>
             </div>
-          </section>
+          </div>
         )}
 
+        {/* Toggle Button */}
         <button
-          type="button"
-          onClick={() => setOpen((currentState) => !currentState)}
-          className="group flex items-center gap-3 rounded-full border border-slate-800 bg-slate-950 px-5 py-4 text-white shadow-xl transition-all hover:-translate-y-0.5 hover:shadow-2xl"
-          aria-expanded={open}
-          aria-label="Open SkillMatch AI assistant"
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-3 px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-lg transition-colors"
         >
-          <span className="rounded-full border border-white/10 bg-white/10 p-2 text-emerald-300">
-            <MessageCircle className="h-5 w-5" />
-          </span>
-          <span className="text-left">
-            <span className="block text-sm font-bold">SkillMatch AI</span>
-            <span className="block text-xs text-slate-300 group-hover:text-slate-200">
-              Chat and navigate
-            </span>
+          <div className="relative">
+            {open ? (
+              <ChevronDown className="w-5 h-5" />
+            ) : (
+              <MessageCircle className="w-5 h-5" />
+            )}
+            {!open && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-slate-900" />
+            )}
+          </div>
+          <span className="font-medium text-sm">
+            {open ? "Close" : "Chat with AI"}
           </span>
         </button>
       </div>

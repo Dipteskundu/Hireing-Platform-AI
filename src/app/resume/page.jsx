@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/AuthContext";
-import { API_BASE } from "../lib/apiClient";
+import apiClient, { API_BASE } from "../lib/apiClient";
 
 const acceptedTypes = [
   "application/pdf",
@@ -14,7 +14,7 @@ const acceptedTypes = [
 
 export default function ResumePage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, claims } = useAuth();
 
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -23,6 +23,13 @@ export default function ResumePage() {
   const [result, setResult] = useState(null);
 
   const isAuthenticated = useMemo(() => !!user?.uid, [user]);
+  const isAdmin = useMemo(
+    () =>
+      (claims && claims.role === "admin") ||
+      user?.role === "admin" ||
+      (user && user.email === "admin@manager.com"),
+    [claims, user],
+  );
 
   const handleFileChange = (event) => {
     const nextFile = event.target.files?.[0] || null;
@@ -69,15 +76,9 @@ export default function ResumePage() {
       formData.append("resume", file);
       formData.append("candidateId", user.uid);
 
-      const response = await fetch(`${API_BASE}/api/resume/upload`, {
-        method: "POST",
-        body: formData,
+      const { data: payload } = await apiClient.post("/api/resume/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.message || "Resume upload failed.");
-      }
 
       setResult(payload?.data || null);
       setSuccess(
@@ -117,6 +118,12 @@ export default function ResumePage() {
             </div>
           )}
 
+          {isAdmin && (
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              Admin accounts are not allowed to upload resumes here.
+            </div>
+          )}
+
           <div className="mt-6 space-y-4">
             <label className="block text-sm font-semibold text-slate-700">
               Resume file (PDF / DOC / DOCX / TXT)
@@ -125,6 +132,7 @@ export default function ResumePage() {
               type="file"
               accept=".pdf,.doc,.docx,.txt"
               onChange={handleFileChange}
+              disabled={isAdmin}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-indigo-700"
             />
 
@@ -144,7 +152,7 @@ export default function ResumePage() {
               <button
                 type="button"
                 onClick={handleUpload}
-                disabled={uploading || !isAuthenticated}
+                disabled={uploading || !isAuthenticated || isAdmin}
                 className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {uploading ? "Uploading..." : "Upload & Analyze"}

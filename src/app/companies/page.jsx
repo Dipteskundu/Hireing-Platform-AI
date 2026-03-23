@@ -13,12 +13,14 @@ import {
   Building2,
   Globe,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { auth } from "../lib/firebaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageWrapper from "../components/common/PageWrapper";
-import { API_BASE } from "../lib/apiClient";
+import apiClient, { API_BASE } from "../lib/apiClient";
 
 const COMPANIES_PER_PAGE = 9;
 
@@ -32,7 +34,7 @@ function Pagination({ current, total, onChange }) {
       aria-label="Pagination"
     >
       <button
-        onClick={() => onChange(current - 1)}
+        onClick={() => onChange(Math.max(1, current - 1))}
         disabled={current === 1}
         className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         aria-label="Previous page"
@@ -40,39 +42,23 @@ function Pagination({ current, total, onChange }) {
         <ChevronLeft className="w-4 h-4" />
       </button>
 
-      {pages.map((p) => {
-        const isEllipsis =
-          total > 7 &&
-          p !== 1 &&
-          p !== total &&
-          (p < current - 2 || p > current + 2);
-        if (isEllipsis) {
-          if (p === current - 3 || p === current + 3)
-            return (
-              <span key={p} className="px-1 text-slate-400">
-                …
-              </span>
-            );
-          return null;
-        }
-        return (
-          <button
-            key={p}
-            onClick={() => onChange(p)}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-colors ${
-              p === current
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-            aria-current={p === current ? "page" : undefined}
-          >
-            {p}
-          </button>
-        );
-      })}
+      {pages.map((p) => (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-colors ${
+            p === current
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+          }`}
+          aria-current={p === current ? "page" : undefined}
+        >
+          {p}
+        </button>
+      ))}
 
       <button
-        onClick={() => onChange(current + 1)}
+        onClick={() => onChange(Math.min(total, current + 1))}
         disabled={current === total}
         className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         aria-label="Next page"
@@ -95,9 +81,12 @@ const INDUSTRIES = [
 ];
 
 export default function CompaniesPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, claims, isAuthenticated } = useAuth();
   const router = useRouter();
-  const apiBase = API_BASE;
+  const adminEmails = ["admin@admin.com", "admin@manager.com"];
+  const isAdmin =
+    user?.isLocalAdmin ||
+    adminEmails.includes((user?.email || "").trim().toLowerCase());
 
   /* ── Data ── */
   const [companies, setCompanies] = useState([]);
@@ -117,9 +106,7 @@ export default function CompaniesPage() {
   useEffect(() => {
     async function fetchCompanies() {
       try {
-        const res = await fetch(`${apiBase}/api/v1/companies`);
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const json = await res.json();
+        const { data: json } = await apiClient.get("/api/v1/companies");
         setCompanies(json.data || []);
       } catch (err) {
         console.error("Failed to fetch companies", err);
@@ -129,7 +116,7 @@ export default function CompaniesPage() {
       }
     }
     fetchCompanies();
-  }, [apiBase]);
+  }, []);
 
   /* ── Derived: filtered + sorted list ── */
   const filtered = (() => {
@@ -199,21 +186,61 @@ export default function CompaniesPage() {
       return;
     }
     try {
-      const res = await fetch(
-        `${apiBase}/api/v1/companies/${company._id}/follow`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid: user.uid, email: user.email }),
-        },
-      );
-      if (res.ok) {
-        setInfoMessage(`Now following ${company.name} ✓`);
-        setTimeout(() => setInfoMessage(""), 3000);
-      }
+      await apiClient.post(`/api/v1/companies/${company._id}/follow`, {
+        uid: user.uid,
+        email: user.email,
+      });
+      setInfoMessage(`Now following ${company.name} ✓`);
+      setTimeout(() => setInfoMessage(""), 3000);
     } catch (err) {
       console.error("Failed to follow company", err);
     }
+  };
+
+  const handleDeleteCompany = async (companyId) => {
+    // This function will be invoked by the confirmation modal.
+    if (!user) {
+      router.push("/signin");
+      return;
+    }
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`${apiBase}/api/companies/${companyId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed");
+      setCompanies((prev) =>
+        prev.filter((c) => String(c._id) !== String(companyId)),
+      );
+      setInfoMessage("Company deleted");
+      setTimeout(() => setInfoMessage(""), 3000);
+    } catch (err) {
+      console.error("Delete company error:", err);
+      setInfoMessage("Failed to delete company");
+      setTimeout(() => setInfoMessage(""), 3000);
+    }
+  };
+
+  // Confirmation modal state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState(null);
+
+  const requestDeleteCompany = (company) => {
+    setCompanyToDelete(company);
+    setConfirmOpen(true);
+  };
+
+  const cancelDelete = () => {
+    setCompanyToDelete(null);
+    setConfirmOpen(false);
+  };
+
+  const confirmDelete = async () => {
+    if (!companyToDelete) return;
+    await handleDeleteCompany(companyToDelete._id || companyToDelete.id);
+    setCompanyToDelete(null);
+    setConfirmOpen(false);
   };
 
   return (
@@ -236,12 +263,21 @@ export default function CompaniesPage() {
               </p>
             </div>
 
+            {isAuthenticated && isAdmin && (
+              <div className="mb-8 flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-800 font-medium">
+                  Admin mode: you can remove companies directly from this page.
+                </p>
+              </div>
+            )}
+
             {/* ── Search & Filters Row ── */}
             <div className="flex flex-col md:flex-row items-center gap-3 mb-10">
               {/* Search */}
               <div className="flex-1 w-full relative">
                 <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-5 py-3.5 focus-within:border-indigo-400 transition-all premium-shadow">
-                  <Search className="w-4.5 w-[18px] h-[18px] text-slate-400 shrink-0" />
+                  <Search className="w-4.5 h-4.5 text-slate-400 shrink-0" />
                   <input
                     type="text"
                     placeholder="Search by company name, industry or location…"
@@ -273,7 +309,7 @@ export default function CompaniesPage() {
                   setSelectedIndustry(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-2xl px-5 py-3.5 focus:ring-indigo-500 focus:border-indigo-400 cursor-pointer premium-shadow outline-none min-w-[170px]"
+                className="bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-2xl px-5 py-3.5 focus:ring-indigo-500 focus:border-indigo-400 cursor-pointer premium-shadow outline-none min-w-42.5"
               >
                 <option value="">All Industries</option>
                 {INDUSTRIES.map((ind) => (
@@ -290,7 +326,7 @@ export default function CompaniesPage() {
                   setSortBy(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-2xl px-5 py-3.5 focus:ring-indigo-500 focus:border-indigo-400 cursor-pointer premium-shadow outline-none min-w-[160px]"
+                className="bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-2xl px-5 py-3.5 focus:ring-indigo-500 focus:border-indigo-400 cursor-pointer premium-shadow outline-none min-w-40"
               >
                 <option value="default">Sort: Default</option>
                 <option value="rating">Top Rated</option>
@@ -436,11 +472,27 @@ export default function CompaniesPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleFollow(company)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all active:scale-95"
+                        onClick={() =>
+                          isAdmin
+                            ? requestDeleteCompany(company)
+                            : handleFollow(company)
+                        }
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                          isAdmin
+                            ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white"
+                            : "bg-slate-900 text-white hover:bg-indigo-600"
+                        }`}
                       >
-                        {isAuthenticated ? "Follow" : "Sign in"}{" "}
-                        <ChevronRight className="w-4 h-4" />
+                        {isAdmin
+                          ? "Delete"
+                          : isAuthenticated
+                            ? "Follow"
+                            : "Sign in"}{" "}
+                        {isAdmin ? (
+                          <Trash2 className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
 
@@ -489,7 +541,7 @@ export default function CompaniesPage() {
                 </button>
               </div>
               <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white rounded-full blur-[120px]" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-white rounded-full blur-[120px]" />
               </div>
             </div>
           </PageWrapper>
@@ -497,6 +549,45 @@ export default function CompaniesPage() {
       </main>
 
       <Footer />
+
+      {confirmOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm"
+            onClick={cancelDelete}
+            aria-hidden="true"
+          />
+
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+              <div className="p-6 border-b border-slate-50">
+                <h3 className="text-lg font-black text-slate-900">
+                  Confirm deletion
+                </h3>
+                <p className="text-sm text-slate-500 mt-2">
+                  Are you sure you want to delete{" "}
+                  {companyToDelete?.name || "this company"}? This action cannot
+                  be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-3 p-4">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 rounded-xl bg-red-600 text-white font-black hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

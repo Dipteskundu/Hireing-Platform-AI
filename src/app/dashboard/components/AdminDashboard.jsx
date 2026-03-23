@@ -1,308 +1,116 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
-import {
-    Users, Briefcase, TrendingUp, Building2,
-    ShieldCheck, ShieldX, ChevronRight, BarChart2,
-    AlertTriangle, CheckCircle, Search
-} from "lucide-react";
-import Skeleton from "../../components/common/Skeleton";
-import { useScrollReveal } from "../../lib/useScrollReveal";
+import React, { useEffect, useState } from "react";
+import apiClient from "@/app/lib/apiClient";
+import Skeleton from "@/app/components/common/Skeleton";
+import { Users, Briefcase, BarChart2, FileText } from "lucide-react";
 
-function StatCard({ label, value, icon: Icon, color, bg }) {
-    return (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
-            <div className={`${bg} ${color} p-3 rounded-xl shrink-0 group-hover:scale-105 transition-transform`}>
-                <Icon className="w-6 h-6" aria-hidden="true" />
-            </div>
-            <div>
-                <p className="text-2xl font-bold text-slate-900">{value}</p>
-                <p className="text-sm text-slate-500 font-medium mt-0.5">{label}</p>
-            </div>
-        </div>
-    );
+function StatCard({ label, value, icon: Icon, bg = "bg-slate-50", color = "text-slate-700" }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-4 hover:shadow-sm transition">
+      <div className={`${bg} p-3 rounded-xl shrink-0`}>
+        <Icon className={`w-6 h-6 ${color}`} aria-hidden="true" />
+      </div>
+      <div>
+        <p className="text-2xl font-bold text-slate-900">{value}</p>
+        <p className="text-sm text-slate-500 font-medium mt-0.5">{label}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function AdminDashboard({ user, data, loading }) {
-    const [searchUser, setSearchUser] = useState("");
-    const [actionMsg, setActionMsg] = useState(null);
-    const revealRef = useScrollReveal();
+  const [localData, setLocalData] = useState(data || null);
+  const [refreshing, setRefreshing] = useState(false);
 
-    const stats = [
-        { label: "Total Users",       value: data?.stats?.totalUsers        ?? "—", icon: Users,     color: "text-indigo-600", bg: "bg-indigo-50" },
-        { label: "Active Jobs",       value: data?.stats?.totalJobs         ?? "—", icon: Briefcase, color: "text-blue-600",   bg: "bg-blue-50" },
-        { label: "Applications",      value: data?.stats?.totalApplications ?? "—", icon: TrendingUp,color: "text-emerald-600",bg: "bg-emerald-50" },
-        { label: "Companies",         value: data?.stats?.totalCompanies    ?? "—", icon: Building2, color: "text-amber-600",  bg: "bg-amber-50" },
-    ];
+  useEffect(() => {
+    setLocalData(data);
+  }, [data]);
 
-    if (loading) {
-        return (
-            <div className="space-y-6" aria-busy="true" aria-label="Loading admin dashboard">
-                <Skeleton className="h-20 w-full rounded-2xl" />
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6">
-                            <Skeleton className="w-12 h-12 rounded-xl mb-4" />
-                            <Skeleton className="h-7 w-16 mb-2" />
-                            <Skeleton className="h-4 w-24" />
-                        </div>
-                    ))}
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-3">
-                        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)}
-                    </div>
-                    <Skeleton className="h-64 w-full rounded-2xl" />
-                </div>
-            </div>
-        );
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const res = await apiClient.get(`/api/dashboard/admin`);
+      setLocalData(res.data?.data || null);
+    } catch (err) {
+      console.warn("Failed to refresh admin dashboard:", err);
     }
+    setRefreshing(false);
+  };
 
-    const filteredUsers = (data?.recentUsers || []).filter(u =>
-        u.email?.toLowerCase().includes(searchUser.toLowerCase()) ||
-        u.displayName?.toLowerCase().includes(searchUser.toLowerCase())
-    );
-
-    const handleUserAction = (uid, action) => {
-        setActionMsg({ uid, action });
-        setTimeout(() => setActionMsg(null), 3000);
-    };
-
-    const growthData = data?.growth || [
-        { month: "Jan", users: 400 },
-        { month: "Feb", users: 600 },
-        { month: "Mar", users: 800 },
-        { month: "Apr", users: 950 },
-        { month: "May", users: 1100 },
-        { month: "Jun", users: 1350 },
-    ];
-    const maxUsers = Math.max(...growthData.map(d => d.users));
-
-    const ROLE_BADGE = {
-        admin:     "bg-amber-100 text-amber-700",
-        recruiter: "bg-blue-100 text-blue-700",
-        candidate: "bg-indigo-100 text-indigo-700",
-    };
-
+  if (loading && !localData) {
     return (
-        <div className="space-y-8" ref={revealRef}>
-
-            {/* Toast */}
-            {actionMsg && (
-                <div
-                    role="alert"
-                    aria-live="polite"
-                    className={`fixed top-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-lg font-semibold text-sm text-white ${actionMsg.action === "ban" ? "bg-red-600" : "bg-emerald-600"}`}
-                >
-                    User {actionMsg.action === "ban" ? "banned" : "activated"} successfully.
-                </div>
-            )}
-
-            {/* Admin Banner */}
-            <div className="reveal bg-slate-900 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <ShieldCheck className="w-5 h-5 text-emerald-400" aria-hidden="true" />
-                        <span className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">Admin Control Panel</span>
-                    </div>
-                    <h2 className="text-white font-bold text-lg">Platform Overview</h2>
-                    <p className="text-slate-400 text-sm mt-0.5">Full visibility and control of the SkillMatch AI platform.</p>
-                </div>
-                <div className="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-xl text-sm font-semibold shrink-0">
-                    <CheckCircle className="w-4 h-4" aria-hidden="true" />
-                    Platform Online
-                </div>
-            </div>
-
-            {/* Stats */}
-            <section aria-label="Platform stats" className="reveal delay-100">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {stats.map(s => <StatCard key={s.label} {...s} />)}
-                </div>
-            </section>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Main Column */}
-                <div className="lg:col-span-2 space-y-6">
-
-                    {/* User Management */}
-                    <section aria-labelledby="users-heading">
-                        <h2 id="users-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
-                            <Users className="w-5 h-5 text-indigo-500" aria-hidden="true" />
-                            User Management
-                        </h2>
-
-                        <div className="relative mb-3">
-                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" aria-hidden="true" />
-                            <input
-                                type="search"
-                                placeholder="Search by name or email..."
-                                value={searchUser}
-                                onChange={e => setSearchUser(e.target.value)}
-                                aria-label="Search users"
-                                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
-                            />
-                        </div>
-
-                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                            {filteredUsers.length > 0 ? (
-                                <ul role="list" className="divide-y divide-slate-100">
-                                    {filteredUsers.map((u, i) => (
-                                        <li key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${ROLE_BADGE[u.role] || "bg-slate-100 text-slate-500"}`} aria-hidden="true">
-                                                    {(u.displayName?.[0] || u.email?.[0] || "?").toUpperCase()}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="font-semibold text-slate-800 text-sm truncate">{u.displayName || "Unnamed User"}</p>
-                                                    <p className="text-xs text-slate-400 truncate">{u.email}</p>
-                                                    <span className={`mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-md capitalize ${ROLE_BADGE[u.role] || "bg-slate-100 text-slate-600"}`}>
-                                                        {u.role}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <button
-                                                    onClick={() => handleUserAction(u.firebaseUid, "activate")}
-                                                    disabled={u.role === "admin"}
-                                                    aria-label={`Activate ${u.displayName || u.email}`}
-                                                    className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-500 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed"
-                                                >
-                                                    <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" /> Activate
-                                                </button>
-                                                <button
-                                                    onClick={() => handleUserAction(u.firebaseUid, "ban")}
-                                                    disabled={u.role === "admin"}
-                                                    aria-label={`Ban ${u.displayName || u.email}`}
-                                                    className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-500 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
-                                                >
-                                                    <ShieldX className="w-3.5 h-3.5" aria-hidden="true" /> Ban
-                                                </button>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="py-12 text-center">
-                                    <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" aria-hidden="true" />
-                                    <p className="text-slate-500 text-sm font-medium">
-                                        {data?.recentUsers?.length === 0 ? "No users found." : "No users match your search."}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </section>
-
-                    {/* Recent Jobs */}
-                    <section aria-labelledby="jobs-heading">
-                        <h2 id="jobs-heading" className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
-                            <Briefcase className="w-5 h-5 text-blue-500" aria-hidden="true" />
-                            Recent Job Posts
-                        </h2>
-                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                            {(data?.recentJobs || []).length > 0 ? (
-                                <ul role="list" className="divide-y divide-slate-100">
-                                    {data.recentJobs.map((job, i) => (
-                                        <li key={i} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors">
-                                            <div className="min-w-0">
-                                                <p className="font-semibold text-slate-800 text-sm truncate">{job.title}</p>
-                                                <p className="text-xs text-slate-400 mt-0.5">{job.company} · {job.location}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2 shrink-0 ml-3">
-                                                <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg">Active</span>
-                                                <button
-                                                    aria-label={`Remove job: ${job.title}`}
-                                                    className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-                                                >
-                                                    <ShieldX className="w-4 h-4" aria-hidden="true" />
-                                                </button>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="py-10 text-center">
-                                    <p className="text-slate-400 text-sm">No job posts found.</p>
-                                </div>
-                            )}
-                        </div>
-                    </section>
-                </div>
-
-                {/* Sidebar */}
-                <aside className="space-y-5" aria-label="Admin tools">
-
-                    {/* Growth Chart */}
-                    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                        <h3 className="font-bold text-slate-900 mb-5 flex items-center gap-2 text-sm">
-                            <BarChart2 className="w-4 h-4 text-indigo-500" aria-hidden="true" />
-                            Platform Growth
-                        </h3>
-                        <div className="flex items-end justify-between gap-1.5 h-28" role="img" aria-label="Monthly user growth chart">
-                            {growthData.map(({ month, users }) => (
-                                <div key={month} className="flex flex-col items-center gap-1 flex-1">
-                                    <div
-                                        className="w-full bg-indigo-500 rounded-t-lg hover:bg-indigo-600 transition-colors relative group cursor-default"
-                                        style={{ height: `${(users / maxUsers) * 100}%` }}
-                                        title={`${month}: ${users} users`}
-                                    >
-                                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                            {users}
-                                        </span>
-                                    </div>
-                                    <span className="text-[10px] font-medium text-slate-400">{month}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Fraud Alerts */}
-                    <div className="bg-amber-50 rounded-2xl border border-amber-200 p-6">
-                        <h3 className="font-bold text-amber-900 mb-4 flex items-center gap-2 text-sm">
-                            <AlertTriangle className="w-4 h-4 text-amber-500" aria-hidden="true" />
-                            Fraud Alerts
-                        </h3>
-                        <ul role="list" className="space-y-2">
-                            {[
-                                { msg: "2 duplicate job posts detected", severity: "medium" },
-                                { msg: "1 suspicious account flagged", severity: "high" },
-                            ].map((alert, i) => (
-                                <li key={i} className={`flex items-center gap-2.5 p-3 rounded-xl text-xs font-medium text-slate-700 ${alert.severity === "high" ? "bg-red-100" : "bg-amber-100"}`}>
-                                    <span className={`w-2 h-2 rounded-full shrink-0 ${alert.severity === "high" ? "bg-red-500" : "bg-amber-500"}`} aria-hidden="true" />
-                                    {alert.msg}
-                                </li>
-                            ))}
-                        </ul>
-                        <p className="text-xs text-amber-600 mt-3">AI-powered detection. Manual review advised.</p>
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                        <h3 className="font-bold text-slate-900 mb-4 text-sm">Quick Actions</h3>
-                        <nav aria-label="Admin quick actions">
-                            <ul className="space-y-1">
-                                {[
-                                    { label: "View All Users",     href: "/admin/users" },
-                                    { label: "Manage Job Posts",   href: "/admin/jobs" },
-                                    { label: "Platform Reports",   href: "/admin/reports" },
-                                    { label: "Security Settings",  href: "/admin/security" },
-                                ].map(({ label, href }) => (
-                                    <li key={label}>
-                                        <a
-                                            href={href}
-                                            className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 group"
-                                        >
-                                            {label}
-                                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors" aria-hidden="true" />
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </nav>
-                    </div>
-                </aside>
-            </div>
+      <div className="space-y-6" aria-busy="true">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+          ))}
         </div>
+        <Skeleton className="h-72 w-full rounded-2xl" />
+      </div>
     );
+  }
+
+  const stats = [
+    { label: "Total Users", value: localData?.stats?.users ?? 0, icon: Users, bg: "bg-indigo-50", color: "text-indigo-600" },
+    { label: "Active Jobs", value: localData?.stats?.jobs ?? 0, icon: Briefcase, bg: "bg-blue-50", color: "text-blue-600" },
+    { label: "Applications", value: localData?.stats?.applications ?? 0, icon: FileText, bg: "bg-emerald-50", color: "text-emerald-600" },
+    { label: "Reports", value: localData?.stats?.reports ?? 0, icon: BarChart2, bg: "bg-amber-50", color: "text-amber-600" },
+  ];
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+          {stats.map((s) => (
+            <StatCard key={s.label} {...s} />
+          ))}
+        </div>
+        <div className="shrink-0">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="px-4 py-2 bg-slate-100 text-slate-800 rounded-xl font-semibold hover:bg-slate-200 disabled:opacity-60"
+          >
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
+          <h3 className="font-bold text-slate-900 mb-4">Recent Activity</h3>
+          {Array.isArray(localData?.recent) && localData.recent.length > 0 ? (
+            <ul className="divide-y divide-slate-100">
+              {localData.recent.map((r, i) => (
+                <li key={r.id ?? i} className="py-3">
+                  <p className="text-sm text-slate-800 font-medium">{r.title}</p>
+                  <p className="text-xs text-slate-500 mt-1">{r.detail}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-slate-500">No recent activity.</p>
+          )}
+        </section>
+
+        <aside className="space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+            <h4 className="font-semibold text-slate-900">Quick Actions</h4>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <a href="/dashboard/admin/users" className="block text-sm text-indigo-600 font-medium">Manage Users</a>
+              <a href="/dashboard/admin/jobs" className="block text-sm text-indigo-600 font-medium">Review Jobs</a>
+              <a href="/dashboard/admin/reports" className="block text-sm text-indigo-600 font-medium">View Reports</a>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+            <h4 className="font-semibold text-slate-900">System</h4>
+            <p className="text-sm text-slate-500 mt-2">Last updated: {localData?.updatedAt ? new Date(localData.updatedAt).toLocaleString() : "—"}</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
 }
+
