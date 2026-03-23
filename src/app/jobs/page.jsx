@@ -148,6 +148,7 @@ export default function JobsPage() {
 
   /* ── Data ─────────────────────────────────────── */
   const [jobs, setJobs] = useState([]);
+  const [appliedJobIds, setAppliedJobIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [infoMessage, setInfoMessage] = useState("");
@@ -282,6 +283,10 @@ export default function JobsPage() {
             (parseSalaryMid(a.salary || a.salaryRange) || 0) -
             (parseSalaryMid(b.salary || b.salaryRange) || 0),
         );
+      }
+      // Remove jobs the candidate already applied to
+      if (appliedJobIds && appliedJobIds.size > 0) {
+        list = list.filter((j) => !appliedJobIds.has(String(j._id)));
       }
       // "newest" keeps server order
     }
