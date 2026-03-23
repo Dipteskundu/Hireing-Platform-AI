@@ -1,5 +1,7 @@
 We starting our project from Feb 15 2026. Using Next js
 
+i have resolve the marge conflict of develelopment branch and main branch
+
 ## Frontend Folder Structure
 
 SkillMatch-AI/
