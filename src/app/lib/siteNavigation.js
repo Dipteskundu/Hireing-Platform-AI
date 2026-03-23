@@ -37,10 +37,10 @@ export const assistantQuickActions = [
 ];
 
 export const assistantPrompts = [
-  "Help me find jobs",
-  "Where can I upload my resume?",
-  "How do I check my skill gap?",
-  "Show me recruiter tools",
+  "How do I upload my resume?",
+  "How many jobs have I applied to?",
+  "Summarize my skill gaps",
+  "What does my dashboard show?",
 ];
 
 export const assistantQuickActionsByRole = {

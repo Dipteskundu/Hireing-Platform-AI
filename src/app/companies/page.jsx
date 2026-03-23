@@ -13,13 +13,12 @@ import {
   Building2,
   Globe,
   AlertCircle,
-  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageWrapper from "../components/common/PageWrapper";
-import apiClient, { API_BASE } from "../lib/apiClient";
+import { API_BASE } from "../lib/apiClient";
 
 const COMPANIES_PER_PAGE = 9;
 
@@ -95,13 +94,20 @@ const INDUSTRIES = [
   "Consulting",
 ];
 
+function parseCompanySize(companySize) {
+  if (typeof companySize !== "string") return null;
+  const matches = companySize.match(/\d+/g);
+  if (!matches?.length) return null;
+  const values = matches.map((value) => Number(value));
+  return values.length === 1
+    ? values[0]
+    : Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
 export default function CompaniesPage() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
-  const adminEmails = ["admin@admin.com", "admin@manager.com"];
-  const isAdmin =
-    user?.isLocalAdmin ||
-    adminEmails.includes((user?.email || "").trim().toLowerCase());
+  const apiBase = API_BASE;
 
   /* ── Data ── */
   const [companies, setCompanies] = useState([]);
@@ -121,8 +127,19 @@ export default function CompaniesPage() {
   useEffect(() => {
     async function fetchCompanies() {
       try {
-        const { data: json } = await apiClient.get("/api/v1/companies");
-        setCompanies(json.data || []);
+        const res = await fetch(`${apiBase}/api/v1/companies`);
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const json = await res.json();
+        setCompanies(
+          (json.data || []).map((company) => ({
+            ...company,
+            employees: company.employees ?? parseCompanySize(company.companySize),
+            openJobs: company.openJobs ?? company.jobsCount ?? company.activeJobs ?? null,
+          })),
+        );
+        if (json.fallback && json.message) {
+          setInfoMessage(json.message);
+        }
       } catch (err) {
         console.error("Failed to fetch companies", err);
         setError("Could not load companies. Please try again later.");
@@ -131,7 +148,7 @@ export default function CompaniesPage() {
       }
     }
     fetchCompanies();
-  }, []);
+  }, [apiBase]);
 
   /* ── Derived: filtered + sorted list ── */
   const filtered = (() => {
@@ -201,36 +218,20 @@ export default function CompaniesPage() {
       return;
     }
     try {
-      await apiClient.post(`/api/v1/companies/${company._id}/follow`, {
-        uid: user.uid,
-        email: user.email,
-      });
-      setInfoMessage(`Now following ${company.name} ✓`);
-      setTimeout(() => setInfoMessage(""), 3000);
+      const res = await fetch(
+        `${apiBase}/api/v1/companies/${company._id}/follow`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.uid, email: user.email }),
+        },
+      );
+      if (res.ok) {
+        setInfoMessage(`Now following ${company.name} ✓`);
+        setTimeout(() => setInfoMessage(""), 3000);
+      }
     } catch (err) {
       console.error("Failed to follow company", err);
-    }
-  };
-
-  const handleDeleteCompany = async (company) => {
-    if (!isAdmin) return;
-    const confirmed = window.confirm(
-      `Delete company \"${company.name || "Unknown Company"}\"?`,
-    );
-    if (!confirmed) return;
-
-    try {
-      const { data: json } = await apiClient.delete(
-        `/api/v1/companies/${company._id}`,
-      );
-      if (!json.success) throw new Error(json.message || "Failed to delete company");
-      setCompanies((prev) =>
-        prev.filter((c) => (c._id || c.id) !== (company._id || company.id)),
-      );
-      setInfoMessage("Company removed successfully.");
-      setTimeout(() => setInfoMessage(""), 3000);
-    } catch (err) {
-      setError(err.message || "Could not delete company.");
     }
   };
 
@@ -253,15 +254,6 @@ export default function CompaniesPage() {
                 stay updated on their latest openings.
               </p>
             </div>
-
-            {isAuthenticated && isAdmin && (
-              <div className="mb-8 flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-                <p className="text-sm text-amber-800 font-medium">
-                  Admin mode: you can remove companies directly from this page.
-                </p>
-              </div>
-            )}
 
             {/* ── Search & Filters Row ── */}
             <div className="flex flex-col md:flex-row items-center gap-3 mb-10">
@@ -463,27 +455,11 @@ export default function CompaniesPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() =>
-                          isAdmin
-                            ? handleDeleteCompany(company)
-                            : handleFollow(company)
-                        }
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
-                          isAdmin
-                            ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white"
-                            : "bg-slate-900 text-white hover:bg-indigo-600"
-                        }`}
+                        onClick={() => handleFollow(company)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all active:scale-95"
                       >
-                        {isAdmin
-                          ? "Delete"
-                          : isAuthenticated
-                            ? "Follow"
-                            : "Sign in"}{" "}
-                        {isAdmin ? (
-                          <Trash2 className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
+                        {isAuthenticated ? "Follow" : "Sign in"}{" "}
+                        <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
 

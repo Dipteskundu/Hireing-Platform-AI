@@ -16,6 +16,7 @@ import { useEffect, useRef } from "react";
  */
 export function useScrollReveal(options = {}) {
   const ref = useRef(null);
+  const { threshold = 0.12, rootMargin = "0px 0px -40px 0px", ...observerOptions } = options;
 
   useEffect(() => {
     const el = ref.current;
@@ -33,12 +34,12 @@ export function useScrollReveal(options = {}) {
           }
         });
       },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px", ...options }
+      { threshold, rootMargin, ...observerOptions }
     );
 
     targets.forEach((t) => observer.observe(t));
     return () => observer.disconnect();
-  }, []);
+  }, [observerOptions, rootMargin, threshold]);
 
   return ref;
 }

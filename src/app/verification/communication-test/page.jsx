@@ -7,7 +7,6 @@ import Footer from "../../components/Footer/Footer";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Clock, Send, ShieldAlert, CheckCircle2, MessageCircle } from "lucide-react";
 import { API_BASE } from "../../lib/apiClient";
-import apiClient from "../../lib/apiClient";
 
 export default function CommunicationTestPage() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -43,9 +42,12 @@ export default function CommunicationTestPage() {
   const startSession = async () => {
     setPageStatus("loading");
     try {
-      const { data } = await apiClient.post("/api/verification/communication/start", {
-        candidateId: user.uid,
+      const res = await fetch(`${apiBase}/api/verification/communication/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId: user.uid }),
       });
+      const data = await res.json();
 
       if (data.alreadyVerified) {
         setPageStatus("verified");
@@ -58,7 +60,7 @@ export default function CommunicationTestPage() {
         return;
       }
 
-      if (data.success) {
+      if (res.ok && data.success) {
         setSessionId(data.sessionId);
         setQuestions(data.questions);
         const initAnswers = {};
@@ -84,11 +86,13 @@ export default function CommunicationTestPage() {
       answer: answer.trim(),
     }));
     try {
-      const { data } = await apiClient.post("/api/verification/communication/submit", {
-        sessionId,
-        answers: formattedAnswers,
+      const res = await fetch(`${apiBase}/api/verification/communication/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, answers: formattedAnswers }),
       });
-      if (data.success) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         setResultData(data);
         setPageStatus("result");
       } else {

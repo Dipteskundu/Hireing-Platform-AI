@@ -27,32 +27,32 @@ import { useTheme } from "../../lib/ThemeContext";
 import Avatar from "../common/Avatar";
 import NotificationPanel from "../Notifications/NotificationPanel";
 import { API_BASE } from "../../lib/apiClient";
-import apiClient from "../../lib/apiClient";
 
-export default function Navbar({ isDashboard = false }) {
+export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [clientMounted, setClientMounted] = useState(false);
   const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, role, logout } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme, mounted } = useTheme();
   const [profileRoleLabel, setProfileRoleLabel] = useState(null);
-
-  useEffect(() => {
-    setClientMounted(true);
-  }, []);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
+    if (mobileOpen) {
+      document.body.classList.add("mobile-menu-open");
+    } else {
+      document.body.classList.remove("mobile-menu-open");
+    }
     return () => {
       document.body.style.overflow = "";
+      document.body.classList.remove("mobile-menu-open");
     };
   }, [mobileOpen]);
 
@@ -72,11 +72,17 @@ export default function Navbar({ isDashboard = false }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const apiBase = API_BASE;
+
   useEffect(() => {
     if (!isAuthenticated || !user?.uid) return;
     const fetchUnreadCount = async () => {
       try {
-        const { data: json } = await apiClient.get(`/api/notifications/${user.uid}`);
+        const res = await fetch(
+          new URL(`/api/notifications/${user.uid}`, apiBase).toString(),
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
         if (json.success && json.data)
           setUnreadCount(json.data.unreadCount || 0);
       } catch (err) {
@@ -86,7 +92,7 @@ export default function Navbar({ isDashboard = false }) {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [isAuthenticated, user?.uid]);
+  }, [apiBase, isAuthenticated, user?.uid]);
 
   // Fetch user profile from backend to determine role/label (Recruiter / Pro member etc.)
   useEffect(() => {
@@ -127,95 +133,50 @@ export default function Navbar({ isDashboard = false }) {
     { name: "About Us", href: "/about", icon: Info },
   ];
 
-  const getRoleBasedMenuItems = () => {
-    const commonItems = [
-      {
-        icon: LayoutDashboard,
-        label: "Dashboard",
-        href: `/dashboard/${role || 'candidate'}`,
-        color: "text-indigo-600",
-        bg: "bg-indigo-50",
-      },
-      {
-        icon: User,
-        label: "My Profile",
-        href: "/profile",
-        color: "text-violet-600",
-        bg: "bg-violet-50",
-      },
-    ];
-
-    if (role === "candidate") {
-      return [
-        ...commonItems,
-        {
-          icon: FileText,
-          label: "My Applications",
-          href: "/dashboard/candidate/applications",
-          color: "text-emerald-600",
-          bg: "bg-emerald-50",
-        },
-        {
-          icon: Bookmark,
-          label: "Saved Jobs",
-          href: "/saved-jobs",
-          color: "text-amber-600",
-          bg: "bg-amber-50",
-        },
-        {
-          icon: Lightbulb,
-          label: "Skill Gap Detection",
-          href: "/skill-gap-detection",
-          color: "text-orange-600",
-          bg: "bg-orange-50",
-        },
-      ];
-    }
-
-    if (role === "recruiter") {
-      return [
-        ...commonItems,
-        {
-          icon: Briefcase,
-          label: "My Jobs",
-          href: "/dashboard/recruiter/jobs",
-          color: "text-blue-600",
-          bg: "bg-blue-50",
-        },
-        {
-          icon: Users,
-          label: "Applicants",
-          href: "/dashboard/recruiter/applicants",
-          color: "text-emerald-600",
-          bg: "bg-emerald-50",
-        },
-      ];
-    }
-
-    if (role === "admin") {
-      return [
-        ...commonItems,
-        {
-          icon: Users,
-          label: "All Users",
-          href: "/dashboard/admin/users",
-          color: "text-slate-600",
-          bg: "bg-slate-100",
-        },
-        {
-          icon: Settings,
-          label: "Platform Settings",
-          href: "/dashboard/admin/settings",
-          color: "text-indigo-600",
-          bg: "bg-indigo-50",
-        },
-      ];
-    }
-
-    return commonItems;
-  };
-
-  const userMenuItems = getRoleBasedMenuItems();
+  const userMenuItems = [
+    {
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      href: "/dashboard",
+      color: "text-indigo-600",
+      bg: "bg-indigo-50",
+    },
+    {
+      icon: User,
+      label: "My Profile",
+      href: "/profile",
+      color: "text-violet-600",
+      bg: "bg-violet-50",
+    },
+    {
+      icon: Settings,
+      label: "Edit Profile",
+      href: "/profile/edit",
+      color: "text-slate-600",
+      bg: "bg-slate-100",
+    },
+    {
+      icon: Bookmark,
+      label: "Saved Jobs",
+      href: "/saved-jobs",
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+    {
+      icon: FileText,
+      label: "My Applications",
+      href: "/applications",
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+    },
+    {
+      icon: Lightbulb,
+      label: "Skill Gap Detection",
+      href: "/skill-gap-detection",
+      color: "text-orange-600",
+      bg: "bg-orange-50",
+    },
+  ];
 
   const userDisplayName =
     user?.displayName || user?.email?.split("@")[0] || "User";
@@ -248,12 +209,10 @@ export default function Navbar({ isDashboard = false }) {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-          isDashboard ? "md:left-64" : ""
-        } ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "bg-white/80 backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
-            : "bg-white"
+            ? "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] border-b border-slate-100"
+            : "bg-white border-b border-slate-100"
         }`}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -287,12 +246,8 @@ export default function Navbar({ isDashboard = false }) {
 
             {/* Right Side */}
             <div className="flex items-center gap-3 ml-auto">
-              {/* Auth-dependent UI — only render after client mount to avoid hydration mismatch */}
-              {!clientMounted ? (
-                /* Placeholder matching logged-out layout to keep stable width */
-                <div className="hidden md:flex items-center gap-2 w-52 h-9" />
-              ) : !isAuthenticated ? (
-                /* Logged Out */
+              {/* Logged Out */}
+              {!isAuthenticated && (
                 <>
                   <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 hover:border-slate-300 focus-within:border-indigo-400 focus-within:bg-white transition-all w-52">
                     <Search className="w-4 h-4 text-slate-400 shrink-0" />
@@ -318,8 +273,10 @@ export default function Navbar({ isDashboard = false }) {
                     Sign Up
                   </Link>
                 </>
-              ) : (
-                /* Logged In */
+              )}
+
+              {/* Logged In */}
+              {isAuthenticated && (
                 <>
                   <button
                     onClick={() => setSearchOpen((v) => !v)}
@@ -354,9 +311,7 @@ export default function Navbar({ isDashboard = false }) {
                           {userDisplayName}
                         </p>
                         <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide leading-tight">
-                          {profileRoleLabel
-                            ? profileRoleLabel.toUpperCase()
-                            : "PRO MEMBER"}
+                          PRO MEMBER
                         </p>
                       </div>
                       <Avatar
@@ -503,7 +458,7 @@ export default function Navbar({ isDashboard = false }) {
 
       {/* ── Mobile Drawer Panel ── */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-[85vw] max-w-sm bg-white shadow-2xl flex flex-col md:hidden transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 z-50 h-full w-[85vw] max-w-sm bg-white shadow-2xl flex flex-col md:hidden transition-transform duration-500 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] ${
           mobileOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -516,29 +471,13 @@ export default function Navbar({ isDashboard = false }) {
           >
             <span className="text-indigo-600"></span>
           </Link>
-          <div className="flex items-center gap-2">
-            {/* Theme Toggle (mobile drawer) */}
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-            >
-              {mounted ? (
-                theme === "dark" ? (
-                  <span className="text-[16px]">🌙</span>
-                ) : (
-                  <span className="text-[16px]">☀️</span>
-                )
-              ) : null}
-            </button>
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-              aria-label="Close menu"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-500 ${mobileOpen ? "rotate-0 opacity-100" : "rotate-90 opacity-0"}`}
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Scrollable Content */}
@@ -558,7 +497,7 @@ export default function Navbar({ isDashboard = false }) {
                     {userDisplayName}
                   </p>
                   <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">
-                    {profileRoleLabel || "Pro Member"}
+                    Pro Member
                   </p>
                 </div>
               </div>
@@ -610,18 +549,19 @@ export default function Navbar({ isDashboard = false }) {
               Navigation
             </p>
             <nav className="flex flex-col gap-1">
-              {navLinks.map(({ name, href, icon: Icon }) => {
+              {navLinks.map(({ name, href, icon: Icon }, index) => {
                 const isActive = pathname === href;
                 return (
                   <Link
                     key={name}
                     href={href}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-semibold transition-all ${
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-semibold transition-all duration-500 ${
                       isActive
                         ? "bg-indigo-50 text-indigo-600"
                         : "text-slate-700 hover:bg-slate-50"
-                    }`}
+                    } ${mobileOpen ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
+                    style={{ transitionDelay: `${index * 50 + 100}ms` }}
                   >
                     <span
                       className={`w-8 h-8 flex items-center justify-center rounded-lg ${isActive ? "bg-indigo-100" : "bg-slate-100"}`}
@@ -647,12 +587,13 @@ export default function Navbar({ isDashboard = false }) {
                 Account
               </p>
               <div className="flex flex-col gap-1">
-                {userMenuItems.map(({ icon: Icon, label, href, color, bg }) => (
+                {userMenuItems.map(({ icon: Icon, label, href, color, bg }, index) => (
                   <button
                     key={label}
                     type="button"
                     onClick={() => closeMobile(href)}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-semibold text-slate-700 hover:bg-slate-50 transition-all w-full text-left"
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-500 w-full text-left ${mobileOpen ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
+                    style={{ transitionDelay: `${(index + navLinks.length) * 50 + 150}ms` }}
                   >
                     <span
                       className={`w-8 h-8 flex items-center justify-center rounded-lg ${bg}`}
@@ -668,7 +609,7 @@ export default function Navbar({ isDashboard = false }) {
           )}
 
           {/* Skill Test Promo (logged in) */}
-          {isAuthenticated && role === "candidate" && (
+          {isAuthenticated && (
             <div className="mx-4 mt-5">
               <button
                 onClick={() => closeMobile("/skill-test")}
