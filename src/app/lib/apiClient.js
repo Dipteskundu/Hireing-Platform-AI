@@ -1,31 +1,16 @@
 /**
- * Centralized API client using axios.
- * All requests are routed through the Next.js /backend proxy rewrite,
- * which forwards them server-side to avoid CORS issues.
+ * Single source of truth for the backend base URL.
+ * All API calls in the frontend should import this.
+ *
+ * In production (Vercel), NEXT_PUBLIC_API_BASE_URL is set to:
+ *   https://hireing-platform-ai-server.onrender.com
+ *
+ * Locally it falls back to localhost:5003.
  */
-import axios from "axios";
+const cleanEnv = (value) =>
+  typeof value === "string" ? value.trim() : value;
 
-// The proxy prefix defined in next.config.mjs rewrites
-export const API_BASE = "/backend";
-
-const apiClient = axios.create({
-  baseURL: API_BASE,
-  timeout: 15000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// Response interceptor: unwrap data or throw a clean error
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      "An unexpected error occurred";
-    return Promise.reject(new Error(message));
-  },
-);
-
-export default apiClient;
+export const API_BASE =
+  cleanEnv(process.env.NEXT_PUBLIC_API_BASE_URL) ||
+  cleanEnv(process.env.NEXT_PUBLIC_API_LOCAL) ||
+  "http://localhost:5003";

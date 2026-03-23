@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { X, CheckCircle, ArrowRight, XCircle, Zap, Target } from "lucide-react";
 import { API_BASE } from "../../lib/apiClient";
-import apiClient from "../../lib/apiClient";
 
 // ── Score Ring (CSS-only circular progress) ──────────────────
 function ScoreRing({ score }) {
@@ -95,7 +94,8 @@ export default function FitMapModal({ job, uid, onClose, onApply }) {
             setLoading(true);
             setError(null);
             try {
-                const { data: json } = await apiClient.get(`/api/jobs/${job._id}/fit?uid=${uid}`);
+                const res = await fetch(`${apiBase}/api/jobs/${job._id}/fit?uid=${uid}`);
+                const json = await res.json();
                 if (json.success) {
                     setFitData(json.data);
                 } else {
@@ -109,7 +109,7 @@ export default function FitMapModal({ job, uid, onClose, onApply }) {
         }
 
         fetchFit();
-    }, [job?._id, uid]);
+    }, [job?._id, uid, apiBase]);
 
     const scoreColor =
         fitData?.matchScore >= 75

@@ -8,7 +8,6 @@ import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import { useAuth } from "../../lib/AuthContext";
 import { API_BASE } from "../../lib/apiClient";
-import apiClient from "../../lib/apiClient";
 
 export default function TestContent() {
   const searchParams = useSearchParams();
@@ -38,14 +37,16 @@ export default function TestContent() {
     const startSession = async () => {
       setStarting(true);
       setError("");
+      const apiBase = API_BASE;
       try {
-        const { data: json } = await apiClient.post("/api/communication/start", {
-          jobId,
-          jobTitle,
-          company,
+        const res = await fetch(`${apiBase}/api/communication/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId, jobTitle, company }),
         });
+        const json = await res.json();
         const newSessionId = json?.data?.sessionId || json?.sessionId || "";
-        if (!newSessionId) {
+        if (!res.ok || !newSessionId) {
           throw new Error(json?.message || "Failed to start communication session");
         }
         setSessionId(newSessionId);
@@ -73,8 +74,17 @@ export default function TestContent() {
 
     setSubmitting(true);
     setError("");
+    const apiBase = API_BASE;
     try {
-      await apiClient.post(`/api/communication/submit/${sessionId}`, { response });
+      const res = await fetch(`${apiBase}/api/communication/submit/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.message || "Failed to submit response");
+      }
       router.push(`/communication/result?sessionId=${encodeURIComponent(sessionId)}`);
     } catch (err) {
       setError(err?.message || "Failed to submit response");

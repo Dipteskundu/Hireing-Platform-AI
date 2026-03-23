@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import PageWrapper from "../components/common/PageWrapper";
 import { API_BASE } from "../lib/apiClient";
-import apiClient from "../lib/apiClient";
 
 export default function SkillGapDetectionPage() {
   const { user, isAuthenticated } = useAuth();
@@ -48,7 +47,9 @@ export default function SkillGapDetectionPage() {
     async function fetchJobs() {
       try {
         setLoading(true);
-        const { data } = await apiClient.get("/api/jobs");
+        const res = await fetch(`${apiBase}/api/jobs`);
+        if (!res.ok) throw new Error("Failed to fetch jobs");
+        const data = await res.json();
         const list = Array.isArray(data) ? data : data.data || data.jobs || [];
         setJobs(list);
         setFilteredJobs(list);

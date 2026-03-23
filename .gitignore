@@ -10,6 +10,8 @@
 !.yarn/releases
 !.yarn/versions
 .env
+.env.local
+
 # testing
 /coverage
 
@@ -41,6 +43,7 @@ yarn-error.log*
 firebase-adminsdk*.json
 serviceAccountKey.json
 *serviceAccount*.json
+jobmatching-firebase-adminsdk.json
 
 # vercel
 .vercel
