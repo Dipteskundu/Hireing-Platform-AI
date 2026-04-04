@@ -224,19 +224,6 @@
   background-color: rgba(15, 23, 42, 0.6) !important;
 }
 
-/* Keep interactive slate hover/focus states dark in dark mode */
-:root[data-theme="dark"] .hover\:bg-slate-50:hover,
-:root[data-theme="dark"] .hover\:bg-slate-100:hover,
-:root[data-theme="dark"] .hover\:bg-slate-200:hover,
-:root[data-theme="dark"] .focus\:bg-slate-50:focus,
-:root[data-theme="dark"] .focus\:bg-slate-100:focus,
-:root[data-theme="dark"] .focus\:bg-slate-200:focus,
-:root[data-theme="dark"] .focus-within\:bg-slate-50:focus-within,
-:root[data-theme="dark"] .focus-within\:bg-slate-100:focus-within,
-:root[data-theme="dark"] .focus-within\:bg-slate-200:focus-within {
-  background-color: rgba(30, 41, 59, 0.75) !important;
-}
-
 /* Ensure SVG icons inherit readable color in dark mode */
 :root[data-theme="dark"] svg {
   color: inherit !important;
@@ -953,4 +940,225 @@ body {
   .cursor-dot {
     display: none;
   }
+}
+
+/* Hide chatbot floating button when mobile menu is open */
+body.mobile-menu-open .chatbot-widget {
+  display: none;
+}
+
+/* ── Enhanced Animation Keyframes ─────────────────────────────── */
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-from-left {
+  from { opacity: 0; transform: translateX(-100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-out-to-left {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-100%); }
+}
+@keyframes content-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.99); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    filter: blur(0); }
+}
+@keyframes stagger-item {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.85); }
+  70%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes header-slide-down {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes badge-pop {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes underline-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes ripple {
+  0%   { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+@keyframes drawer-in-right {
+  from { transform: translateX(100%); opacity: 0.6; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes drawer-in-left {
+  from { transform: translateX(-100%); opacity: 0.6; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  40%       { transform: translateY(-5px); }
+  70%       { transform: translateY(-2px); }
+}
+@keyframes number-count {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Animation Utility Classes ─────────────────────────────────── */
+.animate-slide-down        { animation: slide-down        0.3s cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-slide-up-fade     { animation: slide-up-fade     0.35s cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-content-enter     { animation: content-enter     0.45s cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-stagger-item      { animation: stagger-item      0.35s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-pop-in            { animation: pop-in            0.4s  cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-header-slide-down { animation: header-slide-down 0.5s  cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-badge-pop         { animation: badge-pop         0.4s  cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-drawer-in-right   { animation: drawer-in-right   0.35s cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-drawer-in-left    { animation: drawer-in-left    0.35s cubic-bezier(0.22,1,0.36,1) forwards; }
+.animate-overlay-in        { animation: overlay-in        0.25s ease forwards; }
+.animate-card-rise         { animation: card-rise         0.45s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-icon-bounce       { animation: icon-bounce       0.5s  ease forwards; }
+.animate-number-count      { animation: number-count      0.4s  cubic-bezier(0.22,1,0.36,1) forwards; }
+
+/* ── Stagger delay helpers ─────────────────────────────────────── */
+.stagger-1  { animation-delay: 50ms; }
+.stagger-2  { animation-delay: 100ms; }
+.stagger-3  { animation-delay: 150ms; }
+.stagger-4  { animation-delay: 200ms; }
+.stagger-5  { animation-delay: 250ms; }
+.stagger-6  { animation-delay: 300ms; }
+.stagger-7  { animation-delay: 350ms; }
+.stagger-8  { animation-delay: 400ms; }
+
+/* ── Hover micro-interactions ──────────────────────────────────── */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px -6px rgba(99,102,241,0.18);
+}
+
+.hover-scale {
+  transition: transform 0.18s cubic-bezier(0.22,1,0.36,1);
+}
+.hover-scale:hover { transform: scale(1.04); }
+.hover-scale:active { transform: scale(0.97); }
+
+.nav-link-underline {
+  position: relative;
+}
+.nav-link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 0;
+  width: 100%; height: 2px;
+  background: #6366f1;
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1);
+}
+.nav-link-underline:hover::after,
+.nav-link-underline.active::after { transform: scaleX(1); }
+
+/* ── Smooth page transitions ───────────────────────────────────── */
+.page-transition-enter {
+  animation: content-enter 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+/* ── Sidebar nav item hover glow ───────────────────────────────── */
+.sidebar-nav-item {
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+.sidebar-nav-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(99,102,241,0.08) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: inherit;
+}
+.sidebar-nav-item:hover::before { opacity: 1; }
+.sidebar-nav-item:hover { transform: translateX(3px); }
+.sidebar-nav-item.active-nav { transform: translateX(3px); }
+
+/* ── Button press effect ───────────────────────────────────────── */
+.btn-press {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.btn-press:active { transform: scale(0.96); }
+
+/* ── Smooth scrollbar for dashboard ───────────────────────────── */
+.smooth-scroll { scroll-behavior: smooth; }
+
+/* ── Notification badge animation ─────────────────────────────── */
+.notif-badge {
+  animation: badge-pop 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+/* ── Card hover with border glow ──────────────────────────────── */
+.card-glow {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.2s cubic-bezier(0.22,1,0.36,1);
+}
+.card-glow:hover {
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.15), 0 12px 32px -8px rgba(99,102,241,0.12);
+  border-color: rgba(99,102,241,0.3) !important;
+  transform: translateY(-2px);
+}
+
+/* ── Focus ring animation ──────────────────────────────────────── */
+.focus-ring {
+  transition: box-shadow 0.15s ease;
+}
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.35);
+}
+
+/* ── react-big-calendar overrides ── */
+.rbc-wrapper { font-family: inherit; }
+.rbc-calendar { font-family: inherit; font-size: 13px; }
+.rbc-header { padding: 8px 4px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-bottom: 1px solid #f1f5f9; background: #f8fafc; }
+.rbc-month-view, .rbc-time-view, .rbc-agenda-view { border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; }
+.rbc-day-bg { background: #fff; }
+.rbc-off-range-bg { background: #f8fafc; }
+.rbc-today { background: #eef2ff !important; }
+.rbc-date-cell { padding: 4px 6px; font-size: 12px; font-weight: 600; color: #475569; }
+.rbc-date-cell.rbc-now { color: #4f46e5; font-weight: 800; }
+.rbc-event { border-radius: 6px !important; border: none !important; padding: 1px 4px !important; font-size: 11px !important; }
+.rbc-event:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
+.rbc-show-more { color: #6366f1; font-size: 11px; font-weight: 700; }
+.rbc-toolbar { display: none; } /* hidden — we use CustomToolbar */
+.rbc-agenda-table { font-size: 13px; }
+.rbc-agenda-date-cell, .rbc-agenda-time-cell { white-space: nowrap; padding: 8px 12px; font-weight: 600; color: #475569; }
+.rbc-agenda-event-cell { padding: 8px 12px; }
+.rbc-time-slot { font-size: 11px; color: #94a3b8; }
+.rbc-current-time-indicator { background: #6366f1; height: 2px; }
+
+/* Mobile tweaks */
+@media (max-width: 640px) {
+  .rbc-header { font-size: 10px; padding: 6px 2px; }
+  .rbc-date-cell { font-size: 11px; padding: 2px 3px; }
+  .rbc-event { font-size: 10px !important; }
+  .rbc-show-more { font-size: 10px; }
+  .rbc-agenda-date-cell, .rbc-agenda-time-cell { padding: 6px 8px; font-size: 11px; }
 }

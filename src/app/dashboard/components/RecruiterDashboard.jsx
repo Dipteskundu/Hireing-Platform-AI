@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ref, onValue } from "firebase/database";
-import { rtdb } from "@/app/lib/firebaseClient";
-import Skeleton from "@/app/components/common/Skeleton";
-import { useScrollReveal } from "@/app/lib/useScrollReveal";
-import apiClient from "@/app/lib/apiClient";
-import StatusChangeModal from "@/app/components/modals/StatusChangeModal";
-import { toast } from "react-toastify";
+import { rtdb } from "../../lib/firebaseClient";
+import Skeleton from "../../components/common/Skeleton";
+import { useScrollReveal } from "../../lib/useScrollReveal";
+import { RecruiterPipelineChart, RecruiterJobsChart } from "./DashboardCharts";
+import { API_BASE } from "../../lib/apiClient";
+import { devLog, safeError } from "../../lib/logger";
 
 function StatCard({ label, value, icon: Icon, color, bg }) {
   return (
@@ -42,30 +42,7 @@ function StatCard({ label, value, icon: Icon, color, bg }) {
 
 export default function RecruiterDashboard({ user, data, loading }) {
   const [liveApplicantCounts, setLiveApplicantCounts] = useState({});
-
-  // Debug logging
-  useEffect(() => {
-    console.log("🔍 DEBUG: RecruiterDashboard data:", data);
-    console.log("🔍 DEBUG: data.jobs:", data?.jobs);
-    if (data?.jobs) {
-      data.jobs.forEach((job, i) => {
-        console.log(
-          `🔍 DEBUG: Job ${i}:`,
-          job.title,
-          "applicantsCount:",
-          job.applicantsCount,
-          "_id:",
-          job._id,
-        );
-      });
-    }
-  }, [data]);
   const [showPostJob, setShowPostJob] = useState(false);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [statusChangeData, setStatusChangeData] = useState({
-    applicant: null,
-    newStatus: "",
-  });
   const [jobForm, setJobForm] = useState({
     title: "",
     company: "",
@@ -74,10 +51,18 @@ export default function RecruiterDashboard({ user, data, loading }) {
     experienceLevel: "",
     employmentType: "",
     skills: "",
+    description: "",
+    responsibilities: "",
+    vacancies: "",
+    deadline: "",
   });
   const [posting, setPosting] = useState(false);
   const [postMsg, setPostMsg] = useState(null);
   const revealRef = useScrollReveal();
+
+  // Debug: Check if user data is available
+  devLog("RecruiterDashboard mounted with user:", user);
+  devLog("User UID available:", !!user?.uid);
 
   useEffect(() => {
     if (!data?.jobs || !rtdb) return;
@@ -91,7 +76,7 @@ export default function RecruiterDashboard({ user, data, loading }) {
       });
     });
     return () => unsubscribes.forEach((u) => u());
-  }, [data?.jobs]);
+  }, [data?.jobs, rtdb]);
 
   if (loading) {
     return (
@@ -159,21 +144,49 @@ export default function RecruiterDashboard({ user, data, loading }) {
   const handlePostJob = async (e) => {
     e.preventDefault();
     setPosting(true);
+
+    // Debug logging
+    devLog("User data:", user);
+    devLog("User UID:", user?.uid);
+
+    // Check if user UID exists
+    if (!user?.uid) {
+      safeError("No user UID available!", null);
+      setPostMsg({
+        type: "error",
+        text: "User not authenticated. Please refresh and try again.",
+      });
+      setPosting(false);
+      return;
+    }
+
     try {
-      const { data: result } = await apiClient.post("/api/jobs/request", {
+      const jobData = {
         ...jobForm,
-        recruiterEmail: user?.email || "",
-        recruiterUid: user?.uid || "",
         skills: jobForm.skills
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
+        responsibilities: jobForm.responsibilities
+          .split("\n")
+          .map((r) => r.trim())
+          .filter(Boolean),
+        vacancies: jobForm.vacancies ? parseInt(jobForm.vacancies, 10) : null,
+        postedBy: user?.uid,
+      };
+
+      devLog("Sending job data:", jobData);
+
+      const res = await fetch(`${API_BASE}/api/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jobData),
       });
+      const result = await res.json();
+      devLog("Job creation result:", result);
+
       if (result.success) {
-        setPostMsg({
-          type: "success",
-          text: "Job request submitted for admin approval.",
-        });
+        setPostMsg({ type: "success", text: "Job posted successfully." });
         setJobForm({
           title: "",
           company: "",
@@ -182,64 +195,48 @@ export default function RecruiterDashboard({ user, data, loading }) {
           experienceLevel: "",
           employmentType: "",
           skills: "",
+          description: "",
+          responsibilities: "",
+          vacancies: "",
+          deadline: "",
         });
         setShowPostJob(false);
+
+        // Refresh dashboard data to update stats
+        window.location.reload();
       } else {
         setPostMsg({
           type: "error",
-          text: result.message || "Failed to submit job request.",
+          text: result.message || "Failed to post job.",
         });
       }
-    } catch {
+    } catch (error) {
+      safeError("Job posting error", error);
       setPostMsg({ type: "error", text: "Network error. Please try again." });
     }
     setPosting(false);
     setTimeout(() => setPostMsg(null), 4000);
   };
 
-  const handleStatusChange = (applicant, newStatus) => {
-    // Show confirmation modal instead of directly changing status
-    setStatusChangeData({
-      applicant,
-      newStatus,
-    });
-    setShowStatusModal(true);
+  const handleContact = (email) => {
+    window.location.href = `mailto:${email}`;
   };
 
-  const confirmStatusChange = async () => {
-    const { applicant, newStatus } = statusChangeData;
-
-    try {
-      await apiClient.put(`/api/applications/${applicant._id}/status`, {
-        status: newStatus,
-      });
-
-      const statusMessages = {
-        shortlisted: "Applicant shortlisted successfully!",
-        interviewing: "Applicant moved to interviewing stage!",
-        selected: "Applicant selected for the position!",
-        rejected: "Applicant status updated to rejected.",
-      };
-
-      toast.success(
-        statusMessages[newStatus] || "Status updated successfully!",
-      );
-
-      // Refresh the dashboard data to show updated status
-      window.location.reload();
-    } catch (err) {
-      console.error("Failed to update status:", err);
-      toast.error("Failed to update status. Please try again.");
+  const handleStatusChange = async (appId, newStatus) => {
+    let feedback = null;
+    if (newStatus === "rejected") {
+      feedback = prompt("Provide feedback for this rejection (optional):");
+      if (feedback === null) return;
     }
-  };
-
-  const handleContact = async (applicant) => {
-    const email = applicant.email || applicant.firebaseUid;
-    const subject = `Regarding your application for ${applicant.jobTitle || "a position"}`;
-    const body = `Hi ${applicant.email?.split("@")[0] || "Candidate"},\n\nI'm reaching out regarding your application for ${applicant.jobTitle || "a position"} at ${applicant.company || "our company"}.\n\nI'd like to discuss the next steps in the hiring process.\n\nBest regards,\n${user?.displayName || "Hiring Team"}`;
-
-    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoUrl, "_blank");
+    try {
+      await fetch(`${API_BASE}/api/applications/${appId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus, feedback }),
+      });
+    } catch (err) {
+      safeError("Status update failed", err);
+    }
   };
 
   return (
@@ -271,129 +268,13 @@ export default function RecruiterDashboard({ user, data, loading }) {
         </div>
       </section>
 
-      {/* Post Job Banner */}
-      <div className="reveal delay-100 bg-indigo-600 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-white font-bold text-lg">Post a New Job</h2>
-          <p className="text-indigo-200 text-sm mt-0.5">
-            Reach thousands of qualified candidates instantly.
-          </p>
+      {/* Charts */}
+      <section aria-label="Pipeline charts" className="reveal delay-75">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <RecruiterPipelineChart stats={data?.stats} />
+          <RecruiterJobsChart jobs={data?.jobs} />
         </div>
-        <button
-          onClick={() => setShowPostJob(!showPostJob)}
-          aria-expanded={showPostJob}
-          aria-controls="post-job-form"
-          className="inline-flex items-center gap-2 bg-white text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-indigo-50 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600 shrink-0"
-        >
-          <Plus className="w-4 h-4" aria-hidden="true" />
-          {showPostJob ? "Cancel" : "Post Job"}
-        </button>
-      </div>
-
-      {/* Post Job Form */}
-      {showPostJob && (
-        <div
-          id="post-job-form"
-          className="bg-white rounded-2xl border border-slate-200 p-6"
-        >
-          <h3 className="font-bold text-slate-900 mb-5">Job Details</h3>
-          <form
-            onSubmit={handlePostJob}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-          >
-            {[
-              {
-                label: "Job Title",
-                key: "title",
-                placeholder: "e.g. Senior React Developer",
-                required: true,
-              },
-              {
-                label: "Company",
-                key: "company",
-                placeholder: "e.g. Google",
-                required: true,
-              },
-              {
-                label: "Location",
-                key: "location",
-                placeholder: "e.g. Remote / New York",
-                required: true,
-              },
-              {
-                label: "Salary Range",
-                key: "salaryRange",
-                placeholder: "e.g. $80k – $120k",
-              },
-              {
-                label: "Experience Level",
-                key: "experienceLevel",
-                placeholder: "e.g. Mid-level",
-              },
-              {
-                label: "Employment Type",
-                key: "employmentType",
-                placeholder: "e.g. Full-time",
-              },
-            ].map(({ label, key, placeholder, required }) => (
-              <div key={key}>
-                <label
-                  htmlFor={`job-${key}`}
-                  className="block text-xs font-semibold text-slate-600 mb-1.5"
-                >
-                  {label}
-                  {required && (
-                    <span className="text-red-500 ml-0.5" aria-hidden="true">
-                      *
-                    </span>
-                  )}
-                </label>
-                <input
-                  id={`job-${key}`}
-                  type="text"
-                  placeholder={placeholder}
-                  value={jobForm[key]}
-                  onChange={(e) =>
-                    setJobForm((f) => ({ ...f, [key]: e.target.value }))
-                  }
-                  required={required}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
-                />
-              </div>
-            ))}
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="job-skills"
-                className="block text-xs font-semibold text-slate-600 mb-1.5"
-              >
-                Required Skills{" "}
-                <span className="text-slate-400 font-normal">
-                  (comma-separated)
-                </span>
-              </label>
-              <input
-                id="job-skills"
-                type="text"
-                placeholder="e.g. React, Node.js, TypeScript"
-                value={jobForm.skills}
-                onChange={(e) =>
-                  setJobForm((f) => ({ ...f, skills: e.target.value }))
-                }
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <button
-                type="submit"
-                disabled={posting}
-                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60"
-              >
-                {posting ? "Posting..." : "Post Job"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Applicants */}
@@ -407,8 +288,7 @@ export default function RecruiterDashboard({ user, data, loading }) {
               Recent Applicants
             </h2>
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-              {Array.isArray(data?.recentApplications) &&
-              data.recentApplications.length > 0 ? (
+              {(data?.recentApplications || []).length > 0 ? (
                 <ul role="list" className="divide-y divide-slate-100">
                   {data.recentApplications.map((app, i) => (
                     <li
@@ -442,7 +322,7 @@ export default function RecruiterDashboard({ user, data, loading }) {
                           id={`status-${app._id || i}`}
                           defaultValue={app.status || "submitted"}
                           onChange={(e) =>
-                            handleStatusChange(app, e.target.value)
+                            handleStatusChange(app._id, e.target.value)
                           }
                           className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 cursor-pointer"
                         >
@@ -453,7 +333,7 @@ export default function RecruiterDashboard({ user, data, loading }) {
                           <option value="selected">Selected</option>
                         </select>
                         <button
-                          onClick={() => handleContact(app)}
+                          onClick={() => handleContact(app.email)}
                           className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-50 hover:text-indigo-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
                         >
                           <Mail className="w-3.5 h-3.5" aria-hidden="true" />
@@ -530,11 +410,11 @@ export default function RecruiterDashboard({ user, data, loading }) {
               />
               Active Jobs
             </h3>
-            {Array.isArray(data?.jobs) && data.jobs.length > 0 ? (
+            {(data?.jobs || []).length > 0 ? (
               <ul role="list" className="space-y-2">
                 {data.jobs.map((job, i) => (
                   <li
-                    key={job._id ?? i}
+                    key={i}
                     className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-indigo-50 transition-colors group"
                   >
                     <div className="min-w-0">
@@ -561,15 +441,6 @@ export default function RecruiterDashboard({ user, data, loading }) {
           </div>
         </aside>
       </div>
-
-      {/* Status Change Confirmation Modal */}
-      <StatusChangeModal
-        isOpen={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
-        applicant={statusChangeData.applicant}
-        newStatus={statusChangeData.newStatus}
-        onConfirm={confirmStatusChange}
-      />
     </div>
   );
 }

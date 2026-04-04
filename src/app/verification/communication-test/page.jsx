@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../lib/AuthContext";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Clock, Send, ShieldAlert, CheckCircle2, MessageCircle } from "lucide-react";
 import { API_BASE } from "../../lib/apiClient";
-import apiClient from "../../lib/apiClient";
 
 export default function CommunicationTestPage() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -28,19 +27,20 @@ export default function CommunicationTestPage() {
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!loading && !isAuthenticated) router.push("/signin");
-  }, [loading, isAuthenticated, router]);
+  const startSession = useCallback(async () => {
+    if (!user?.uid) return;
 
-  // Start the test session on mount (moved below startSession declaration)
-
-  async function startSession() {
     setPageStatus("loading");
+    setErrorMsg("");
+    setWarnMsg("");
+
     try {
-      const { data } = await apiClient.post("/api/verification/communication/start", {
-        candidateId: user.uid,
+      const res = await fetch(`${apiBase}/api/verification/communication/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId: user.uid }),
       });
+      const data = await res.json();
 
       if (data.alreadyVerified) {
         setPageStatus("verified");
@@ -53,7 +53,7 @@ export default function CommunicationTestPage() {
         return;
       }
 
-      if (data.success) {
+      if (res.ok && data.success) {
         setSessionId(data.sessionId);
         setQuestions(data.questions);
         const initAnswers = {};
@@ -70,28 +70,36 @@ export default function CommunicationTestPage() {
       setErrorMsg("Network error. Please reload and try again.");
       setPageStatus("error");
     }
-  };
+  }, [apiBase, user]);
 
-  // Start the test session on mount (defer to avoid sync setState in effect)
+  // Redirect if not authenticated
   useEffect(() => {
-    if (!loading && isAuthenticated && user) {
-      const t = setTimeout(() => startSession(), 0);
-      return () => clearTimeout(t);
-    }
-  }, [loading, isAuthenticated, user]);  
+    if (!loading && !isAuthenticated) router.push("/signin");
+  }, [loading, isAuthenticated, router]);
 
-  const handleSubmit = async () => {
+  // Start the test session on mount
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      startSession();
+    }
+  }, [isAuthenticated, loading, startSession]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!sessionId) return;
+
     setPageStatus("submitting");
     const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
       questionId,
-      answer: answer.trim(),
+      answer: String(answer || "").trim(),
     }));
     try {
-      const { data } = await apiClient.post("/api/verification/communication/submit", {
-        sessionId,
-        answers: formattedAnswers,
+      const res = await fetch(`${apiBase}/api/verification/communication/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, answers: formattedAnswers }),
       });
-      if (data.success) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         setResultData(data);
         setPageStatus("result");
       } else {
@@ -103,18 +111,23 @@ export default function CommunicationTestPage() {
       setErrorMsg("Network error while submitting.");
       setPageStatus("error");
     }
-  };
+  }, [answers, apiBase, sessionId]);
+
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  }, [handleSubmit]);
 
   // Timer countdown
   useEffect(() => {
     if (pageStatus !== "testing") return;
     if (timeLeft <= 0) {
-      const tt = setTimeout(() => handleSubmit(), 0);
-      return () => clearTimeout(tt);
+      handleSubmitRef.current();
+      return;
     }
     const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(id);
-  }, [pageStatus, timeLeft]);  
+  }, [pageStatus, timeLeft]);
 
   // Anti-cheating tab visibility
   useEffect(() => {

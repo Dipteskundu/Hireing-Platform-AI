@@ -20,14 +20,12 @@ import {
   SlidersHorizontal,
   AlertCircle,
   LogIn,
-  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { auth } from "../lib/firebaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageWrapper from "../components/common/PageWrapper";
-import apiClient, { API_BASE } from "../lib/apiClient";
+import { API_BASE } from "../lib/apiClient";
 
 const JOBS_PER_PAGE = 9;
 
@@ -144,12 +142,9 @@ function Pagination({ current, total, onChange }) {
 }
 
 export default function JobsPage() {
-  const { user, claims, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const router = useRouter();
-  const adminEmails = ["admin@admin.com", "admin@manager.com"];
-  const isAdmin =
-    user?.isLocalAdmin ||
-    adminEmails.includes((user?.email || "").trim().toLowerCase());
+  const apiBase = API_BASE;
 
   /* ── Data ─────────────────────────────────────── */
   const [jobs, setJobs] = useState([]);
@@ -166,6 +161,20 @@ export default function JobsPage() {
   const [sortBy, setSortBy] = useState("newest");
   const [filtersOpen, setFiltersOpen] = useState(false); // mobile
 
+  /* ── Recruiter apply guard ────────────────────── */
+  const [showRecruiterModal, setShowRecruiterModal] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.uid) return;
+    fetch(`${API_BASE}/api/auth/profile/${user.uid}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setUserRole(d.data?.role || "candidate"); })
+      .catch(() => {});
+  }, [isAuthenticated, user?.uid]);
+
+  const isRecruiter = userRole === "recruiter";
+
   /* ── Fit Map ──────────────────────────────────── */
   const [fitJob, setFitJob] = useState(null);
 
@@ -180,13 +189,15 @@ export default function JobsPage() {
   useEffect(() => {
     async function fetchJobs() {
       try {
-        const { data: json } = await apiClient.get("/api/jobs");
+        const res = await fetch(`${apiBase}/api/jobs`);
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const json = await res.json();
         setJobs(json.data || []);
         // If user is authenticated, also fetch their applications to hide applied jobs
         if (isAuthenticated && user?.uid) {
           try {
             const dashRes = await fetch(
-              `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:5000"}/api/dashboard/candidate/${user.uid}`,
+              `${apiBase}/api/dashboard/candidate/${user.uid}`,
             );
             if (dashRes.ok) {
               const dashJson = await dashRes.json();
@@ -223,7 +234,7 @@ export default function JobsPage() {
       }
     }
     fetchJobs();
-  }, [isAuthenticated, user]);
+  }, [apiBase, isAuthenticated, user]);
 
   /* ── Auto-Open Modal from Notification Link ───── */
   useEffect(() => {
@@ -351,17 +362,29 @@ export default function JobsPage() {
       router.push("/signin");
       return;
     }
+    // Recruiters cannot apply to jobs
+    if (isRecruiter) {
+      setShowRecruiterModal(true);
+      return;
+    }
 
     try {
       // Check verification first
-      const { data } = await apiClient.post(
-        `/api/jobs/${job._id}/pre-apply-check`,
-        { uid: user.uid },
+      const res = await fetch(
+        `${apiBase}/api/jobs/${job._id}/pre-apply-check`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.uid }),
+        },
       );
+      const data = await res.json();
 
       if (data.allowed) {
+        // Verified: proceed to Skill Gap Analysis page
         router.push(`/skill-gap-analysis/${job._id}`);
       } else if (data.redirectTo) {
+        // Not verified: go to intro page
         router.push(data.redirectTo);
       } else {
         setError(data.message || "Cannot apply at this time.");
@@ -378,39 +401,17 @@ export default function JobsPage() {
       return;
     }
     try {
-      await apiClient.post(`/api/jobs/${job._id}/save`, {
-        uid: user.uid,
-        email: user.email,
+      const res = await fetch(`${apiBase}/api/jobs/${job._id}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid, email: user.email }),
       });
-      setInfoMessage("Job saved to your account ✓");
-      setTimeout(() => setInfoMessage(""), 3000);
+      if (res.ok) {
+        setInfoMessage("Job saved to your account ✓");
+        setTimeout(() => setInfoMessage(""), 3000);
+      }
     } catch (err) {
       console.error("Failed to save job", err);
-    }
-  };
-
-  const handleDeleteJob = async (jobId) => {
-    if (!user) {
-      router.push("/signin");
-      return;
-    }
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:5000"}/api/jobs/${jobId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      if (!res.ok) throw new Error("Delete failed");
-      setJobs((prev) => prev.filter((j) => String(j._id) !== String(jobId)));
-      setInfoMessage("Job deleted");
-      setTimeout(() => setInfoMessage(""), 3000);
-    } catch (err) {
-      console.error("Delete job error:", err);
-      setInfoMessage("Failed to delete job");
-      setTimeout(() => setInfoMessage(""), 3000);
     }
   };
 
@@ -496,18 +497,12 @@ export default function JobsPage() {
           <p className="text-slate-400 text-xs mb-4 leading-relaxed">
             Upload your resume and let our AI find perfect roles for you.
           </p>
-          {!(
-            claims?.role === "admin" ||
-            user?.role === "admin" ||
-            (user && user.email === "admin@manager.com")
-          ) && (
-            <button
-              onClick={handleUploadResumeClick}
-              className="w-full py-2.5 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors"
-            >
-              Upload Resume
-            </button>
-          )}
+          <button
+            onClick={handleUploadResumeClick}
+            className="w-full py-2.5 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors"
+          >
+            Upload Resume
+          </button>
         </div>
         <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-indigo-600/20 rounded-full blur-2xl group-hover:bg-indigo-600/40 transition-all duration-500" />
       </div>
@@ -531,15 +526,6 @@ export default function JobsPage() {
                 perfectly matches your skills and ambitions.
               </p>
             </div>
-
-            {isAuthenticated && isAdmin && (
-              <div className="mb-8 flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-                <p className="text-sm text-amber-800 font-medium">
-                  Admin mode: you can remove jobs directly from this page.
-                </p>
-              </div>
-            )}
 
             {/* ── Search + Location Bar ── */}
             <div
@@ -759,12 +745,21 @@ export default function JobsPage() {
                         className="bg-white p-6 sm:p-7 md:p-8 rounded-3xl border border-slate-100 premium-shadow hover:border-indigo-200 hover:shadow-indigo-50/50 transition-all group relative overflow-hidden"
                       >
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
-                          {/* Left */}
+                          {/* Left — clickable to details if authenticated */}
                           <div className="flex items-start gap-5">
                             <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center font-black text-indigo-600 text-lg group-hover:bg-indigo-50 transition-colors border border-slate-100 shrink-0">
                               {job.logo || <Building2 className="w-6 h-6" />}
                             </div>
-                            <div>
+                            <div
+                              className="cursor-pointer"
+                              onClick={() => {
+                                if (isAuthenticated) {
+                                  router.push(`/jobs/${job._id}`);
+                                } else {
+                                  router.push("/signin");
+                                }
+                              }}
+                            >
                               <h3 className="text-lg font-black text-slate-900 group-hover:text-indigo-600 transition-colors mb-1.5">
                                 {job.title}
                               </h3>
@@ -787,44 +782,80 @@ export default function JobsPage() {
                                     job.salaryRange ||
                                     "Competitive"}
                                 </span>
+                                {job.vacancies && (
+                                  <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+                                    <Filter className="w-3.5 h-3.5" />
+                                    {job.vacancies} open
+                                  </span>
+                                )}
+                                {job.deadline && (() => {
+                                  const isPast = new Date(job.deadline) < new Date();
+                                  const days = Math.ceil((new Date(job.deadline) - new Date()) / (1000*60*60*24));
+                                  return (
+                                    <span className={`flex items-center gap-1.5 font-semibold text-xs px-2 py-0.5 rounded-full ${isPast ? "bg-red-50 text-red-600" : days <= 7 ? "bg-orange-50 text-orange-600" : "bg-slate-100 text-slate-500"}`}>
+                                      ⏰ {isPast ? "Closed" : days <= 0 ? "Today!" : `${days}d left`}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
                           {/* Right */}
                           <div className="flex items-center gap-2 shrink-0">
-                            {isAuthenticated && !isAdmin && (
+                            {isAuthenticated && (
                               <button
-                                onClick={() => setFitJob(job)}
-                                className="px-4 py-2.5 border border-indigo-200 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-all text-xs"
-                                title="See how well you match this job"
+                                onClick={() => {
+                                  if (isRecruiter) { setShowRecruiterModal(true); return; }
+                                  setFitJob(job);
+                                }}
+                                disabled={isRecruiter}
+                                className={`px-4 py-2.5 border rounded-xl font-bold text-sm transition-all text-xs ${
+                                  isRecruiter
+                                    ? "border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50"
+                                    : "border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                                }`}
+                                title={isRecruiter ? "Only candidates can use Check Fit" : "See how well you match this job"}
                               >
                                 Check Fit
                               </button>
                             )}
-                            {appliedJobIds &&
-                            appliedJobIds.has(String(job._id)) ? (
-                              <button
-                                disabled
-                                className="px-6 py-2.5 bg-slate-200 text-slate-500 rounded-xl font-bold text-sm cursor-default"
-                              >
-                                Applied
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleApply(job)}
-                                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              >
-                                Apply Now
-                              </button>
-                            )}
-                            {isAdmin && (
-                              <button
-                                onClick={() => handleDeleteJob(job._id)}
-                                className="ml-2 px-3 py-2 bg-red-50 text-red-700 rounded-xl font-semibold text-sm border border-red-100 hover:bg-red-100"
-                              >
-                                Delete
-                              </button>
-                            )}
+                            {(() => {
+                              const isPastDeadline = job.deadline && new Date(job.deadline) < new Date();
+                              const isClosed = job.status === "closed" || isPastDeadline;
+                              if (appliedJobIds && appliedJobIds.has(String(job._id))) {
+                                return (
+                                  <button disabled className="px-6 py-2.5 bg-slate-200 text-slate-500 rounded-xl font-bold text-sm cursor-default">
+                                    Applied
+                                  </button>
+                                );
+                              }
+                              if (isClosed) {
+                                return (
+                                  <button disabled className="px-6 py-2.5 bg-red-50 text-red-400 rounded-xl font-bold text-sm cursor-not-allowed border border-red-100">
+                                    Closed
+                                  </button>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={() => isRecruiter ? setShowRecruiterModal(true) : handleApply(job)}
+                                  className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                                    isRecruiter
+                                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                      : "bg-slate-900 text-white hover:bg-indigo-600"
+                                  }`}
+                                >
+                                  Apply Now
+                                </button>
+                              );
+                            })()}
+                            <button
+                              onClick={() => handleSave(job)}
+                              className="p-2.5 border border-slate-100 rounded-xl hover:bg-amber-50 hover:border-amber-200 transition-colors group/star"
+                              aria-label="Save job"
+                            >
+                              <Star className="w-4.5 w-[18px] h-[18px] text-slate-300 group-hover/star:text-amber-400 transition-colors" />
+                            </button>
                           </div>
                         </div>
 
@@ -891,6 +922,33 @@ export default function JobsPage() {
           onClose={() => setFitJob(null)}
           onApply={handleApply}
         />
+      )}
+
+      {/* Recruiter apply guard modal */}
+      {showRecruiterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowRecruiterModal(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center"
+            onClick={e => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <AlertCircle className="w-8 h-8 text-amber-500" />
+            </div>
+            <h2 className="text-xl font-black text-slate-900 mb-2">Recruiter Account Detected</h2>
+            <p className="text-slate-500 text-sm leading-relaxed mb-6">
+              Applying to jobs requires a <span className="font-bold text-slate-700">candidate account</span>. Your current account is registered as a recruiter.
+            </p>
+            <div className="space-y-2">
+              <a href="/signup?role=candidate"
+                className="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-2xl transition-colors">
+                Create a Candidate Account
+              </a>
+              <button onClick={() => setShowRecruiterModal(false)}
+                className="block w-full py-3 border border-slate-200 text-slate-500 font-semibold text-sm rounded-2xl hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

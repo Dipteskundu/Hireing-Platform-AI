@@ -12,14 +12,25 @@ import {
   Star,
   Award,
   XCircle,
+  Calendar,
 } from "lucide-react";
 import { ref, onChildAdded } from "firebase/database";
 import { rtdb } from "../../lib/firebaseClient";
 import { API_BASE } from "../../lib/apiClient";
-import apiClient from "../../lib/apiClient";
+import { safeError } from "../../lib/logger";
 
 const TYPE_CONFIG = {
   application_viewed: { icon: Eye, color: "text-blue-500", bg: "bg-blue-50" },
+  application_status: {
+    icon: CheckCircle,
+    color: "text-indigo-500",
+    bg: "bg-indigo-50",
+  },
+  interview_scheduled: {
+    icon: Calendar,
+    color: "text-green-500",
+    bg: "bg-green-50",
+  },
   status_shortlisted: {
     icon: Star,
     color: "text-emerald-500",
@@ -68,7 +79,7 @@ function NotificationItem({ notif, onRead }) {
                 hour: "2-digit",
                 minute: "2-digit",
               })
-            : "—"}
+            : "\u2014"}
         </p>
       </div>
       {!notif.read && (
@@ -90,14 +101,19 @@ export default function NotificationPanel({
 
   const apiBase = API_BASE;
 
+  // Derive unreadCount directly during render, no effect needed
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     if (!uid) return;
     let mounted = true;
 
-    apiClient.get(`/api/notifications/${uid}`)
-      .then(({ data: json }) => {
+    fetch(new URL(`/api/notifications/${uid}`, apiBase).toString())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((json) => {
         if (!mounted) return;
         if (json.success && json.data) {
           const fetchedNotifs = json.data.notifications || [];
@@ -107,7 +123,7 @@ export default function NotificationPanel({
           }
         }
       })
-      .catch((err) => console.error("Failed to fetch notifications:", err))
+      .catch((err) => safeError("Failed to fetch notifications", err))
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -149,7 +165,7 @@ export default function NotificationPanel({
       mounted = false;
       if (typeof unsubscribe === "function") unsubscribe();
     };
-  }, [uid, setParentUnreadCount]);
+  }, [uid, apiBase, setParentUnreadCount]);
 
   async function handleNotificationClick(notif) {
     const id = notif._id || notif.id;
@@ -163,7 +179,11 @@ export default function NotificationPanel({
     // Only mark as read if it's currently unread
     if (!notif.read) {
       try {
-        const { data: json } = await apiClient.patch(`/api/notifications/${id}/read`);
+        const res = await fetch(
+          new URL(`/api/notifications/${id}/read`, apiBase).toString(),
+          { method: "PATCH" },
+        );
+        const json = await res.json();
         if (json.success) {
           setNotifications((prev) =>
             prev.map((n) =>
@@ -175,14 +195,18 @@ export default function NotificationPanel({
           }
         }
       } catch (err) {
-        console.error("Failed to mark notification as read:", err);
+        safeError("Failed to mark notification as read", err);
       }
     }
   }
 
   async function markAllRead() {
     try {
-      const { data: json } = await apiClient.patch(`/api/notifications/read-all/${uid}`);
+      const res = await fetch(
+        new URL(`/api/notifications/read-all/${uid}`, apiBase).toString(),
+        { method: "PATCH" },
+      );
+      const json = await res.json();
       if (json.success) {
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         if (setParentUnreadCount) {
@@ -190,7 +214,7 @@ export default function NotificationPanel({
         }
       }
     } catch (err) {
-      console.error("Failed to mark all as read:", err);
+      safeError("Failed to mark all as read", err);
     }
   }
 

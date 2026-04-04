@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageWrapper from "../components/common/PageWrapper";
-import apiClient, { API_BASE } from "../lib/apiClient";
+import { API_BASE } from "../lib/apiClient";
 
 export default function SavedJobsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -31,7 +31,8 @@ export default function SavedJobsPage() {
     const fetchSavedJobs = async () => {
       setLoading(true);
       try {
-        const { data: json } = await apiClient.get(`/api/jobs/saved/${user.uid}`);
+        const res = await fetch(`${API_BASE}/api/jobs/saved/${user.uid}`);
+        const json = await res.json();
         if (json.success) {
           setSavedJobs(json.data);
         } else {
@@ -55,7 +56,10 @@ export default function SavedJobsPage() {
       return;
 
     try {
-      const { data: json } = await apiClient.delete(`/api/jobs/saved/${savedId}`);
+      const res = await fetch(`${API_BASE}/api/jobs/saved/${savedId}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
       if (json.success) {
         setSavedJobs((prev) => prev.filter((job) => job._id !== savedId));
       } else {

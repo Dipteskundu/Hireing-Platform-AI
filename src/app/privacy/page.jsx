@@ -9,7 +9,7 @@ export default function PrivacyPolicyPage() {
     {
       title: "Introduction",
       icon: <FileText className="w-5 h-5 text-indigo-600" />,
-      content: "Welcome to SkillMatch AI. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you."
+      content: "Welcome to JobMatch AI. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you."
     },
     {
       title: "Information We Collect",
@@ -78,7 +78,7 @@ export default function PrivacyPolicyPage() {
 
           <div className="mt-12 p-8 bg-slate-50 border border-slate-100 rounded-3xl text-center">
             <p className="text-slate-500 text-sm mb-0">
-              By using SkillMatch AI, you agree to the collection and use of information in accordance with this policy.
+              By using JobMatch AI, you agree to the collection and use of information in accordance with this policy.
               Review our <a href="/terms" className="text-indigo-600 font-semibold hover:underline">Terms of Service</a> for more details.
             </p>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 /**
  * Attaches IntersectionObserver to a container ref and adds
@@ -16,6 +16,7 @@ import { useEffect, useRef } from "react";
  */
 export function useScrollReveal(options = {}) {
   const ref = useRef(null);
+  const stableOptions = useMemo(() => options ?? {}, [options]);
 
   useEffect(() => {
     const el = ref.current;
@@ -33,12 +34,12 @@ export function useScrollReveal(options = {}) {
           }
         });
       },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px", ...options }
+      { threshold: 0.12, rootMargin: "0px 0px -40px 0px", ...stableOptions }
     );
 
     targets.forEach((t) => observer.observe(t));
     return () => observer.disconnect();
-  }, []);
+  }, [stableOptions]);
 
   return ref;
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/AuthContext";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
-import apiClient, { API_BASE } from "../../lib/apiClient";
+import { API_BASE } from "../../lib/apiClient";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -18,10 +18,9 @@ import {
 } from "lucide-react";
 
 export default function SkillGapAnalysisPage({ params }) {
-  // Extract params via React.use() to avoid Next.js warnings about async params
-  const { jobId } = use(params);
+  const jobId = params?.jobId;
 
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const apiBase = API_BASE;
 
@@ -37,30 +36,24 @@ export default function SkillGapAnalysisPage({ params }) {
 
   const [applying, setApplying] = useState(false);
 
-  useEffect(() => {
-    if (!isAuthenticated && user === null) {
-      router.push("/signin");
-      return;
-    }
+  const fetchAnalysis = useCallback(async () => {
+    if (!jobId || !user?.uid) return;
 
-    if (isAuthenticated && user?.uid) {
-      fetchAnalysis();
-    }
-  }, [isAuthenticated, user, jobId]);
-
-  async function fetchAnalysis() {
     try {
       setLoading(true);
-      const jobRes = await apiClient.get(`/api/jobs/${jobId}`);
-      if (jobRes.data) {
-        setJobTitle(jobRes.data.data?.title || "Job");
-        setCompany(jobRes.data.data?.company || "");
+      setError(null);
+
+      // Job title/company (best-effort)
+      const jobRes = await fetch(`${apiBase}/api/jobs/${jobId}`);
+      if (jobRes.ok) {
+        const jobData = await jobRes.json();
+        setJobTitle(jobData.data?.title || "Job");
+        setCompany(jobData.data?.company || "");
       }
 
       const res = await fetch(`${apiBase}/api/skill-gap/${jobId}/${user.uid}`);
-      if (!res.ok) {
-        throw new Error("Analysis failed to load");
-      }
+      if (!res.ok) throw new Error("Analysis failed to load");
+
       const data = await res.json();
 
       if (data.success) {
@@ -77,10 +70,25 @@ export default function SkillGapAnalysisPage({ params }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [apiBase, jobId, user?.uid]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      router.push("/signin");
+      return;
+    }
+    if (!jobId) {
+      setError("Missing job id.");
+      setLoading(false);
+      return;
+    }
+    fetchAnalysis();
+  }, [authLoading, fetchAnalysis, isAuthenticated, jobId, router]);
 
   const handleApplyAnyway = async () => {
     try {
+      if (!user?.uid) return;
       setApplying(true);
       const res = await fetch(`${apiBase}/api/jobs/${jobId}/apply`, {
         method: "POST",

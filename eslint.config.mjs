@@ -11,6 +11,14 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // App Router: fonts are commonly loaded in `app/layout.*`.
+      "@next/next/no-page-custom-font": "off",
+      // Side-effects (data fetch, auth redirects) commonly set state in effects.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

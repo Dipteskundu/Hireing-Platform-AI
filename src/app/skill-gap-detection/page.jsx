@@ -10,7 +10,7 @@ import {
   Search,
   Briefcase,
   MapPin,
-  Building2,
+  Building,
   ArrowRight,
   Loader2,
   AlertTriangle,
@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import PageWrapper from "../components/common/PageWrapper";
 import { API_BASE } from "../lib/apiClient";
-import apiClient from "../lib/apiClient";
 
 export default function SkillGapDetectionPage() {
   const { user, isAuthenticated } = useAuth();
@@ -48,7 +47,9 @@ export default function SkillGapDetectionPage() {
     async function fetchJobs() {
       try {
         setLoading(true);
-        const { data } = await apiClient.get("/api/jobs");
+        const res = await fetch(`${apiBase}/api/jobs`);
+        if (!res.ok) throw new Error("Failed to fetch jobs");
+        const data = await res.json();
         const list = Array.isArray(data) ? data : data.data || data.jobs || [];
         setJobs(list);
         setFilteredJobs(list);
@@ -233,7 +234,7 @@ export default function SkillGapDetectionPage() {
                       </h2>
                       {job.company && (
                         <p className="flex items-center gap-1 text-xs text-slate-500 font-semibold mt-0.5">
-                          <Building2 className="w-3 h-3" />
+                          <Building className="w-3 h-3" />
                           {job.company}
                         </p>
                       )}

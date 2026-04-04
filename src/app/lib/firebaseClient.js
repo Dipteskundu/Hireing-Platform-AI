@@ -8,14 +8,44 @@ function cleanEnv(value) {
   return typeof value === "string" ? value.trim() : value;
 }
 
+function hasValue(value) {
+  if (typeof value !== "string") return false;
+  const v = value.trim();
+  if (!v) return false;
+  if (v.toLowerCase() === "undefined") return false;
+  if (v.toLowerCase() === "null") return false;
+  return true;
+}
+
+function looksLikePlaceholder(value) {
+  if (typeof value !== "string") return false;
+  return /(your_|your-|\bexample\b|\bchangeme\b)/i.test(value);
+}
+
 function normalizeDatabaseUrl(rawUrl) {
   const value = String(cleanEnv(rawUrl) || "").trim();
   if (!value) return "";
 
-  return value.replace(
-    /^https:\/\/([^.]+)\.firebaseio\.com\/?$/i,
-    "https://$1.firebasedatabase.app",
-  );
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+
+  try {
+    const url = new URL(withScheme);
+    const hostname = url.hostname.toLowerCase();
+
+    // Some setups mistakenly use `<db>.firebasedatabase.app` (missing region).
+    // That hostname does not resolve; fall back to the widely-supported legacy domain.
+    if (hostname.endsWith(".firebasedatabase.app")) {
+      const parts = hostname.split(".");
+      // `db.firebasedatabase.app` => ["db","firebasedatabase","app"]
+      if (parts.length === 3 && parts[0]) {
+        return `https://${parts[0]}.firebaseio.com`;
+      }
+    }
+
+    return url.origin;
+  } catch {
+    return value.replace(/\/+$/, "");
+  }
 }
 
 const firebaseConfig = {
@@ -30,13 +60,49 @@ const firebaseConfig = {
   ),
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const firebaseConfigured =
+  hasValue(firebaseConfig.apiKey) &&
+  !looksLikePlaceholder(firebaseConfig.apiKey) &&
+  hasValue(firebaseConfig.projectId) &&
+  !looksLikePlaceholder(firebaseConfig.projectId);
+
+export const firebaseClientStatus = {
+  configured: firebaseConfigured,
+  projectId: firebaseConfig.projectId || "",
+  initError: null,
+  authError: null,
+};
+
 const realtimeDatabaseUrl = firebaseConfig.databaseURL;
 
-export const auth = getAuth(app);
+const app = (() => {
+  if (!firebaseConfigured) return null;
+  try {
+    return !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  } catch (err) {
+    // If Firebase config is present but invalid, avoid crashing the whole app at import time.
+    firebaseClientStatus.initError =
+      err?.code || err?.message || String(err);
+    console.warn("Firebase client init failed. Auth features disabled.", err);
+    return null;
+  }
+})();
+
+export const auth = (() => {
+  if (!app) return null;
+  try {
+    return getAuth(app);
+  } catch (err) {
+    firebaseClientStatus.authError = err?.code || err?.message || String(err);
+    console.warn("Firebase Auth init failed. Auth features disabled.", err);
+    return null;
+  }
+})();
 export const googleProvider = new GoogleAuthProvider();
 export const rtdb = realtimeDatabaseUrl
-  ? getDatabase(app, realtimeDatabaseUrl)
+  ? app
+    ? getDatabase(app, realtimeDatabaseUrl)
+    : null
   : null;
 
 export default app;

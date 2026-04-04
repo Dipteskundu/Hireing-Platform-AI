@@ -21,7 +21,7 @@ export default function AboutPage() {
                             <span className="text-indigo-600">future of hiring.</span>
                         </h1>
                         <p className="text-lg sm:text-xl text-slate-500 leading-relaxed max-w-2xl">
-                            SkillMatch AI was founded on a simple belief: the right job can change a life, and the right talent can change the world. We use cutting-edge AI to make those connections happen faster and more accurately than ever before.
+                            JobMatch AI was founded on a simple belief: the right job can change a life, and the right talent can change the world. We use cutting-edge AI to make those connections happen faster and more accurately than ever before.
                         </p>
                     </div>
                 </section>

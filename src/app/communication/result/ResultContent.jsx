@@ -27,9 +27,10 @@ export default function ResultContent() {
             return;
         }
         if (!sessionId) {
-            // avoid synchronous setState inside effect
-            setTimeout(() => setError("Missing session ID."), 0);
-            setTimeout(() => setLoading(false), 0);
+            setTimeout(() => {
+                setError("Missing session ID.");
+                setLoading(false);
+            }, 0);
             return;
         }
 

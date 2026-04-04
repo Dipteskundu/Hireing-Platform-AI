@@ -149,7 +149,7 @@ const TESTIMONIALS = [
     company: "Stripe",
     avatar: "SC",
     avatarBg: "bg-blue-100 text-blue-700",
-    text: "SkillMatch cut our hiring time from 6 weeks to 12 days. The quality of candidates we see now is incomparable to traditional résumé screening.",
+    text: "JobMatch cut our hiring time from 6 weeks to 12 days. The quality of candidates we see now is incomparable to traditional résumé screening.",
     stars: 5,
   },
   {
@@ -167,7 +167,7 @@ const TESTIMONIALS = [
     company: "Notion",
     avatar: "PN",
     avatarBg: "bg-emerald-100 text-emerald-700",
-    text: "Bias-free assessment is not just a checkbox for us — it's a culture value. SkillMatch is the only platform that actually delivers on that promise end-to-end.",
+    text: "Bias-free assessment is not just a checkbox for us — it's a culture value. JobMatch is the only platform that actually delivers on that promise end-to-end.",
     stars: 5,
   },
 ];
@@ -289,7 +289,7 @@ export default function Home() {
             <p
               className={`text-slate-500 mt-4 text-base sm:text-xl max-w-2xl mx-auto leading-relaxed transition-all duration-700 delay-200 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
             >
-              SkillMatch AI validates real abilities through structured assessments,
+              JobMatch AI validates real abilities through structured assessments,
               then matches candidates by <strong className="text-slate-700 font-semibold">demonstrated performance</strong> — not keywords.
             </p>
 

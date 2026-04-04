@@ -22,38 +22,35 @@ import {
   Info,
   ChevronRight,
   Zap,
-  Calendar,
+  Clock,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { useTheme } from "../../lib/ThemeContext";
 import Avatar from "../common/Avatar";
 import NotificationPanel from "../Notifications/NotificationPanel";
 import { API_BASE } from "../../lib/apiClient";
-import apiClient from "../../lib/apiClient";
 
-export default function Navbar({ isDashboard = false }) {
+export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [clientMounted, setClientMounted] = useState(false);
   const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout, claims, role } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme, mounted } = useTheme();
   const [profileRoleLabel, setProfileRoleLabel] = useState(null);
-
-  useEffect(() => {
-    const t = setTimeout(() => setClientMounted(true), 0);
-    return () => clearTimeout(t);
-  }, []);
+  const [profileDisplayName, setProfileDisplayName] = useState(null);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
+    window.dispatchEvent(new CustomEvent("skillmatch:mobile-menu", { detail: { open: mobileOpen } }));
     return () => {
       document.body.style.overflow = "";
     };
@@ -75,13 +72,17 @@ export default function Navbar({ isDashboard = false }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const apiBase = API_BASE;
+
   useEffect(() => {
     if (!isAuthenticated || !user?.uid) return;
     const fetchUnreadCount = async () => {
       try {
-        const { data: json } = await apiClient.get(
-          `/api/notifications/${user.uid}`,
+        const res = await fetch(
+          new URL(`/api/notifications/${user.uid}`, apiBase).toString(),
         );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
         if (json.success && json.data)
           setUnreadCount(json.data.unreadCount || 0);
       } catch (err) {
@@ -91,39 +92,31 @@ export default function Navbar({ isDashboard = false }) {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [isAuthenticated, user?.uid]);
+  }, [apiBase, isAuthenticated, user?.uid]);
 
   // Fetch user profile from backend to determine role/label (Recruiter / Pro member etc.)
   useEffect(() => {
     if (!isAuthenticated || !user?.uid) return;
-    // If token claims indicate admin, prefer that immediately
-    if (claims && claims.role === "admin") {
-      // defer to avoid sync setState inside effect
-      const tt = setTimeout(() => setProfileRoleLabel("Admin"), 0);
-      return () => clearTimeout(tt);
-    }
-
     let mountedFlag = true;
     const fetchProfile = async () => {
       try {
-        const baseUrl = API_BASE || "";
-        const endpoint = baseUrl
-          ? `${baseUrl.replace(/\/$/, "")}/api/auth/profile/${user.uid}`
-          : `/api/auth/profile/${user.uid}`;
-        const res = await fetch(endpoint);
+        const res = await fetch(
+          new URL(`/api/auth/profile/${user.uid}`, apiBase).toString(),
+        );
         if (!res.ok) return;
         const json = await res.json();
         if (!json.success || !json.data) return;
         const profile = json.data;
-        let label = "Member";
-        if (profile.role === "recruiter" || profile.role === "employer") {
-          label = "Recruiter";
-        } else if (profile.isPro) {
-          label = "Pro Member";
-        } else if (profile.role === "admin") {
+        let label = "Candidate";
+        if (profile.role === "admin") {
           label = "Admin";
+        } else if (profile.role === "recruiter" || profile.role === "employer") {
+          label = "Recruiter";
+        } else if (profile.role === "candidate" || profile.role === "user") {
+          label = "Candidate";
         }
         if (mountedFlag) setProfileRoleLabel(label);
+        if (mountedFlag && profile.displayName) setProfileDisplayName(profile.displayName);
       } catch (err) {
         // ignore profile fetch errors
       }
@@ -132,126 +125,101 @@ export default function Navbar({ isDashboard = false }) {
     return () => {
       mountedFlag = false;
     };
-  }, [isAuthenticated, user?.uid, claims]);
+  }, [apiBase, isAuthenticated, user?.uid]);
 
-  const baseNavLinks = [
+  const navLinks = [
     { name: "Home", href: "/", icon: Home },
     { name: "Find Jobs", href: "/jobs", icon: Briefcase },
     { name: "Companies", href: "/companies", icon: Building2 },
     { name: "About Us", href: "/about", icon: Info },
   ];
 
-  const navLinks = (() => {
-    if (isAuthenticated && role === "candidate") {
-      return [
-        ...baseNavLinks.slice(0, 2),
-        {
-          name: "My Applications",
-          href: "/applications",
-          icon: FileText,
-        },
-        ...baseNavLinks.slice(2),
-      ];
-    }
-    return baseNavLinks;
-  })();
-
-  const getRoleBasedMenuItems = () => {
-    const commonItems = [
-      {
-        icon: LayoutDashboard,
-        label: "Dashboard",
-        href: `/dashboard/${role || "candidate"}`,
-        color: "text-indigo-600",
-        bg: "bg-indigo-50",
-      },
-      {
-        icon: User,
-        label: "My Profile",
-        href: "/profile",
-        color: "text-violet-600",
-        bg: "bg-violet-50",
-      },
-    ];
-
-    if (role === "candidate") {
-      return [
-        ...commonItems,
-        {
-          icon: FileText,
-          label: "My Applications",
-          href: "/applications",
-          color: "text-emerald-600",
-          bg: "bg-emerald-50",
-        },
-        {
-          icon: Bookmark,
-          label: "Saved Jobs",
-          href: "/saved-jobs",
-          color: "text-amber-600",
-          bg: "bg-amber-50",
-        },
-        {
-          icon: Lightbulb,
-          label: "Skill Gap Detection",
-          href: "/skill-gap-detection",
-          color: "text-orange-600",
-          bg: "bg-orange-50",
-        },
-      ];
-    }
-
-    if (role === "recruiter") {
-      return [
-        ...commonItems,
-        {
-          icon: Calendar,
-          label: "Interviews",
-          href: "/dashboard/recruiter/interviews",
-          color: "text-violet-600",
-          bg: "bg-violet-50",
-        },
-      ];
-    }
-
-    if (role === "admin") {
-      return [
-        ...commonItems,
-        {
-          icon: Users,
-          label: "All Users",
-          href: "/dashboard/admin/users",
-          color: "text-slate-600",
-          bg: "bg-slate-100",
-        },
-        {
-          icon: Settings,
-          label: "Platform Settings",
-          href: "/dashboard/admin/settings",
-          color: "text-indigo-600",
-          bg: "bg-indigo-50",
-        },
-      ];
-    }
-
-    return commonItems;
-  };
-
-  const userMenuItems = getRoleBasedMenuItems();
-
-  const isAdmin =
-    (claims && claims.role === "admin") ||
-    user?.role === "admin" ||
-    (user && user.email === "admin@manager.com");
-
-  const filteredUserMenuItems = userMenuItems.filter((it) => {
-    if (!isAdmin) return true;
-    // hide these items for admin users
-    return !["My Applications", "Skill Gap Detection"].includes(it.label);
-  });
+  const userMenuItems =
+    profileRoleLabel === "Recruiter"
+      ? [
+          {
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            href: "/dashboard",
+            color: "text-indigo-600",
+            bg: "bg-indigo-50",
+          },
+          {
+            icon: User,
+            label: "My Profile",
+            href: "/profile",
+            color: "text-violet-600",
+            bg: "bg-violet-50",
+          },
+          {
+            icon: Users,
+            label: "Applicants",
+            href: "/applicants",
+            color: "text-blue-600",
+            bg: "bg-blue-50",
+          },
+          {
+            icon: Briefcase,
+            label: "My Jobs",
+            href: "/my-jobs",
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
+          },
+          {
+            icon: Clock,
+            label: "Interviews",
+            href: "/interviews",
+            color: "text-amber-600",
+            bg: "bg-amber-50",
+          },
+        ]
+      : [
+          {
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            href: "/dashboard",
+            color: "text-indigo-600",
+            bg: "bg-indigo-50",
+          },
+          {
+            icon: User,
+            label: "My Profile",
+            href: "/profile",
+            color: "text-violet-600",
+            bg: "bg-violet-50",
+          },
+          {
+            icon: Settings,
+            label: "Edit Profile",
+            href: "/profile/edit",
+            color: "text-slate-600",
+            bg: "bg-slate-100",
+          },
+          {
+            icon: Bookmark,
+            label: "Saved Jobs",
+            href: "/saved-jobs",
+            color: "text-amber-600",
+            bg: "bg-amber-50",
+          },
+          {
+            icon: FileText,
+            label: "My Applications",
+            href: "/applications",
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
+          },
+          {
+            icon: Lightbulb,
+            label: "Skill Gap Detection",
+            href: "/skill-gap-detection",
+            color: "text-orange-600",
+            bg: "bg-orange-50",
+          },
+        ];
 
   const userDisplayName =
-    user?.displayName || user?.email?.split("@")[0] || "User";
+    profileDisplayName || user?.displayName || user?.email?.split("@")[0] || "User";
 
   const closeMobile = (href) => {
     setMobileOpen(false);
@@ -281,12 +249,10 @@ export default function Navbar({ isDashboard = false }) {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-          isDashboard ? "md:left-64" : ""
-        } ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "bg-white/80 backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
-            : "bg-white"
+            ? "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] border-b border-slate-100"
+            : "bg-white border-b border-slate-100"
         }`}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -294,7 +260,7 @@ export default function Navbar({ isDashboard = false }) {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
               <span className="text-[17px] font-black text-slate-900 tracking-tight">
-                SkillMatch<span className="text-indigo-600">AI</span>
+                JobMatch<span className="text-indigo-600">AI</span>
               </span>
             </Link>
 
@@ -306,9 +272,9 @@ export default function Navbar({ isDashboard = false }) {
                   <Link
                     key={link.name}
                     href={link.href}
-                    className={`px-3 py-2 rounded-lg text-[14px] font-semibold transition-colors ${
+                    className={`nav-link-underline px-3 py-2 rounded-lg text-[14px] font-semibold transition-colors ${
                       isActive
-                        ? "text-indigo-600"
+                        ? "text-indigo-600 active"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
@@ -320,12 +286,8 @@ export default function Navbar({ isDashboard = false }) {
 
             {/* Right Side */}
             <div className="flex items-center gap-3 ml-auto">
-              {/* Auth-dependent UI — only render after client mount to avoid hydration mismatch */}
-              {!clientMounted ? (
-                /* Placeholder matching logged-out layout to keep stable width */
-                <div className="hidden md:flex items-center gap-2 w-52 h-9" />
-              ) : !isAuthenticated ? (
-                /* Logged Out */
+              {/* Logged Out */}
+              {!isAuthenticated && (
                 <>
                   <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 hover:border-slate-300 focus-within:border-indigo-400 focus-within:bg-white transition-all w-52">
                     <Search className="w-4 h-4 text-slate-400 shrink-0" />
@@ -351,8 +313,10 @@ export default function Navbar({ isDashboard = false }) {
                     Sign Up
                   </Link>
                 </>
-              ) : (
-                /* Logged In */
+              )}
+
+              {/* Logged In */}
+              {isAuthenticated && (
                 <>
                   <button
                     onClick={() => setSearchOpen((v) => !v)}
@@ -387,9 +351,7 @@ export default function Navbar({ isDashboard = false }) {
                           {userDisplayName}
                         </p>
                         <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide leading-tight">
-                          {profileRoleLabel
-                            ? profileRoleLabel.toUpperCase()
-                            : "PRO MEMBER"}
+                          {(profileRoleLabel || "Candidate").toUpperCase()}
                         </p>
                       </div>
                       <Avatar
@@ -404,7 +366,7 @@ export default function Navbar({ isDashboard = false }) {
                     </button>
 
                     {profileOpen && (
-                      <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+                      <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-scale-in">
                         <div className="px-4 py-3 border-b border-slate-100">
                           <div className="flex items-center gap-3">
                             <Avatar
@@ -422,22 +384,17 @@ export default function Navbar({ isDashboard = false }) {
                             </div>
                           </div>
                         </div>
-                        {filteredUserMenuItems.map(
-                          ({ icon: Icon, label, href }) => (
-                            <button
-                              key={label}
-                              type="button"
-                              onClick={() => {
-                                setProfileOpen(false);
-                                router.push(href);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                              <Icon className="w-4 h-4 text-slate-400" />
-                              {label}
-                            </button>
-                          ),
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileOpen(false);
+                            router.push("/dashboard");
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          <LayoutDashboard className="w-4 h-4 text-slate-400" />
+                          Dashboard
+                        </button>
                         <div className="border-t border-slate-100 mt-1 pt-1">
                           <button
                             type="button"
@@ -461,7 +418,7 @@ export default function Navbar({ isDashboard = false }) {
               {/* Mobile Hamburger */}
               <button
                 type="button"
-                className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-100 transition-colors"
+                className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-100 transition-colors hover-scale btn-press"
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label="Toggle menu"
               >
@@ -470,7 +427,7 @@ export default function Navbar({ isDashboard = false }) {
                 ) : (
                   <span className="flex flex-col gap-[5px] items-start w-5">
                     <span className="block h-[2.5px] w-5 bg-slate-800 rounded-full" />
-                    <span className="block h-[2.5px] w-3.5 bg-slate-800 rounded-full ml-auto" />
+                    <span className="block h-[2.5px] w-3 bg-slate-800 rounded-full" />
                     <span className="block h-[2.5px] w-5 bg-slate-800 rounded-full" />
                   </span>
                 )}
@@ -479,15 +436,13 @@ export default function Navbar({ isDashboard = false }) {
               <button
                 onClick={toggleTheme}
                 aria-label="Toggle theme"
-                className="flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="hidden md:flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               >
                 {mounted ? (
-                  theme === "dark" ? (
-                    <span className="text-[16px]">🌙</span>
-                  ) : (
-                    <span className="text-[16px]">☀️</span>
-                  )
-                ) : null}
+                  theme === "dark"
+                    ? <Moon className="w-5 h-5" />
+                    : <Sun className="w-5 h-5" />
+                ) : <Sun className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -530,7 +485,7 @@ export default function Navbar({ isDashboard = false }) {
       {/* ── Mobile Drawer Overlay ── */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden animate-overlay-in"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
@@ -543,44 +498,28 @@ export default function Navbar({ isDashboard = false }) {
         }`}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 animate-slide-down">
           <Link
             href="/"
             onClick={() => setMobileOpen(false)}
-            className="text-[17px] font-black text-slate-900 tracking-tight"
+            className="text-[17px] font-black text-slate-900 tracking-tight hover-scale"
           >
             <span className="text-indigo-600"></span>
           </Link>
-          <div className="flex items-center gap-2">
-            {/* Theme Toggle (mobile drawer) */}
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-            >
-              {mounted ? (
-                theme === "dark" ? (
-                  <span className="text-[16px]">🌙</span>
-                ) : (
-                  <span className="text-[16px]">☀️</span>
-                )
-              ) : null}
-            </button>
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-              aria-label="Close menu"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors hover-scale btn-press"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
           {/* User Profile Card (logged in) */}
           {isAuthenticated && (
-            <div className="mx-4 mt-4 p-4 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl text-white">
+            <div className="mx-4 mt-4 p-4 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl text-white animate-card-rise stagger-1">
               <div className="flex items-center gap-3 mb-3">
                 <Avatar
                   src={user?.photoURL}
@@ -593,7 +532,7 @@ export default function Navbar({ isDashboard = false }) {
                     {userDisplayName}
                   </p>
                   <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">
-                    {profileRoleLabel || "Pro Member"}
+                    {profileRoleLabel || "Candidate"}
                   </p>
                 </div>
               </div>
@@ -645,21 +584,21 @@ export default function Navbar({ isDashboard = false }) {
               Navigation
             </p>
             <nav className="flex flex-col gap-1">
-              {navLinks.map(({ name, href, icon: Icon }) => {
+              {navLinks.map(({ name, href, icon: Icon }, index) => {
                 const isActive = pathname === href;
                 return (
                   <Link
                     key={name}
                     href={href}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-semibold transition-all ${
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-semibold transition-all hover-lift animate-stagger-item stagger-${Math.min(index + 1, 8)} ${
                       isActive
                         ? "bg-indigo-50 text-indigo-600"
                         : "text-slate-700 hover:bg-slate-50"
                     }`}
                   >
                     <span
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg ${isActive ? "bg-indigo-100" : "bg-slate-100"}`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-transform duration-200 ${isActive ? "bg-indigo-100" : "bg-slate-100"}`}
                     >
                       <Icon
                         className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-500"}`}
@@ -667,63 +606,13 @@ export default function Navbar({ isDashboard = false }) {
                     </span>
                     {name}
                     {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pop-in" />
                     )}
                   </Link>
                 );
               })}
             </nav>
           </div>
-
-          {/* Account Links (logged in) */}
-          {isAuthenticated && (
-            <div className="px-4 mt-5">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                Account
-              </p>
-              <div className="flex flex-col gap-1">
-                {userMenuItems.map(({ icon: Icon, label, href, color, bg }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => closeMobile(href)}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-semibold text-slate-700 hover:bg-slate-50 transition-all w-full text-left"
-                  >
-                    <span
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg ${bg}`}
-                    >
-                      <Icon className={`w-4 h-4 ${color}`} />
-                    </span>
-                    {label}
-                    <ChevronRight className="w-4 h-4 text-slate-300 ml-auto" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Skill Test Promo (logged in) */}
-          {isAuthenticated && role === "candidate" && (
-            <div className="mx-4 mt-5">
-              <button
-                onClick={() => closeMobile("/skill-test")}
-                className="w-full flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl hover:bg-amber-100 transition-colors"
-              >
-                <span className="w-10 h-10 flex items-center justify-center bg-amber-400 rounded-xl shrink-0">
-                  <Zap className="w-5 h-5 text-white" />
-                </span>
-                <div className="text-left">
-                  <p className="text-sm font-black text-amber-900">
-                    Take Skill Test
-                  </p>
-                  <p className="text-xs text-amber-700 font-medium">
-                    Verify your skills & stand out
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-amber-500 ml-auto shrink-0" />
-              </button>
-            </div>
-          )}
 
           {/* Logged Out CTAs */}
           {!isAuthenticated && (
@@ -751,7 +640,7 @@ export default function Navbar({ isDashboard = false }) {
 
         {/* Drawer Footer (logged in) */}
         {isAuthenticated && (
-          <div className="px-4 py-4 border-t border-slate-100">
+          <div className="px-4 py-4 border-t border-slate-100 animate-slide-up-fade">
             <button
               type="button"
               onClick={async () => {
@@ -759,7 +648,7 @@ export default function Navbar({ isDashboard = false }) {
                 await logout();
                 router.push("/");
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-3 text-[14px] font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded-2xl transition-colors"
+              className="w-full flex items-center justify-center gap-2.5 py-3 text-[14px] font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded-2xl transition-colors btn-press hover-scale"
             >
               <LogOut className="w-4 h-4" />
               Log Out

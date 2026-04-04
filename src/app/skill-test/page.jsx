@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
 import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 import { AlertCircle, Clock, Send, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { API_BASE } from "../lib/apiClient";
-import apiClient from "../lib/apiClient";
 
 export default function SkillTestPage() {
     const { user, isAuthenticated, loading } = useAuth();
@@ -32,10 +31,7 @@ export default function SkillTestPage() {
     // Result
     const [resultData, setResultData] = useState(null); // { score, result, feedback, ... }
 
-
-    
-
-    function checkTestingEligibility(p) {
+    const checkTestingEligibility = useCallback((p) => {
         // Did they fail recently? Check cooldown
         if (p.nextAttemptTime) {
             const nextTime = new Date(p.nextAttemptTime);
@@ -68,11 +64,13 @@ export default function SkillTestPage() {
 
         setUnverifiedSkills(pending);
         setPageStatus("selection");
-    }
+    }, []);
 
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         try {
-            const { data } = await apiClient.get(`/api/auth/profile/${user.uid}`);
+            if (!user?.uid) return;
+            const res = await fetch(`${apiBase}/api/auth/profile/${user.uid}`);
+            const data = await res.json();
             if (data.success) {
                 const p = data.data;
                 setProfile(p);
@@ -86,19 +84,17 @@ export default function SkillTestPage() {
             setErrorMsg("Error fetching profile.");
             setPageStatus("error");
         }
-    };
+    }, [apiBase, checkTestingEligibility, user]);
 
     // Fetch Profile
     useEffect(() => {
-        if (!loading && !isAuthenticated) {
-                router.push("/signin");
-            } else if (!loading && isAuthenticated) {
-                const t = setTimeout(() => fetchProfile(), 0);
-                return () => clearTimeout(t);
-            }
-    }, [loading, isAuthenticated, router]);  
-
-    
+        if (loading) return;
+        if (!isAuthenticated) {
+            router.push("/signin");
+            return;
+        }
+        fetchProfile();
+    }, [fetchProfile, isAuthenticated, loading, router]);
 
     const startTestGeneration = async () => {
         if (selectedSkills.length === 0) return;
@@ -106,12 +102,15 @@ export default function SkillTestPage() {
         setErrorMsg("");
 
         try {
-            const { data } = await apiClient.post(`/api/skill-test/generate`, {
-                candidateId: user.uid,
-                skills: selectedSkills,
+            const res = await fetch(`${apiBase}/api/skill-test/generate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ candidateId: user.uid, skills: selectedSkills })
             });
-            if (data.success) {
+            const data = await res.json();
+            if (res.ok && data.success) {
                 setTestData(data.data);
+                // Initialize empty answers
                 const initAnswers = {};
                 data.data.questions.forEach(q => initAnswers[q.id] = "");
                 setAnswers(initAnswers);
@@ -128,22 +127,29 @@ export default function SkillTestPage() {
         }
     };
 
-    const handleSubmitTest = async () => {
+    const handleSubmitTest = useCallback(async () => {
+        if (!testData?.testId || !user?.uid) return;
+
         setPageStatus("submitting");
-        
+
         // Format answers for API
         const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
             questionId,
-            answer: answer.trim()
+            answer: String(answer || "").trim(),
         }));
 
         try {
-            const { data } = await apiClient.post(`/api/skill-test/submit`, {
-                testId: testData.testId,
-                candidateId: user.uid,
-                answers: formattedAnswers,
+            const res = await fetch(`${apiBase}/api/skill-test/submit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    testId: testData.testId,
+                    candidateId: user.uid,
+                    answers: formattedAnswers,
+                }),
             });
-            if (data.success) {
+            const data = await res.json();
+            if (res.ok && data.success) {
                 setResultData(data.data);
                 setPageStatus("result");
             } else {
@@ -155,7 +161,12 @@ export default function SkillTestPage() {
             setErrorMsg("Network error submitting test.");
             setPageStatus("error");
         }
-    };
+    }, [answers, apiBase, testData, user]);
+
+    const handleSubmitTestRef = useRef(handleSubmitTest);
+    useEffect(() => {
+        handleSubmitTestRef.current = handleSubmitTest;
+    }, [handleSubmitTest]);
 
     // Timer Logic
     useEffect(() => {
@@ -165,12 +176,11 @@ export default function SkillTestPage() {
                 setTimeLeft(prev => prev - 1);
             }, 1000);
         } else if (pageStatus === "testing" && timeLeft <= 0) {
-            // Auto submit when time is up (deferred to avoid sync setState in effect)
-            const tt = setTimeout(() => handleSubmitTest(), 0);
-            return () => clearTimeout(tt);
+            // Auto submit when time is up
+            handleSubmitTestRef.current();
         }
         return () => clearInterval(interval);
-    }, [pageStatus, timeLeft]);  
+    }, [pageStatus, timeLeft]);
 
     // Anti-cheating: Tab visibility
     useEffect(() => {

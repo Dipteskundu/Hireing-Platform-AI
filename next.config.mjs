@@ -1,17 +1,15 @@
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   reactCompiler: true,
-  async rewrites() {
-    const backendUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      "http://localhost:5000";
-    return [
-      {
-        source: "/backend/:path*",
-        destination: `${backendUrl}/:path*`,
-      },
-    ];
+  turbopack: {
+    resolveAlias: {
+      tailwindcss: path.resolve(__dirname, "node_modules/tailwindcss"),
+    },
   },
   images: {
     remotePatterns: [

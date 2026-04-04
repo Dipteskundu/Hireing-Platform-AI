@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, Clock, XCircle, ChevronRight, MessageSquareOff, MessageSquareText } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, ChevronRight, MessageSquareOff, MessageSquareText, Calendar, Video, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function ApplicationPulseTracker({ application }) {
     if (!application) return null;
@@ -13,17 +14,34 @@ export default function ApplicationPulseTracker({ application }) {
         { id: "submitted", label: "Submitted" },
         { id: "seen", label: "Seen by Recruiter" },
         { id: "shortlisted", label: "Shortlisted for Test" },
+        { id: "task_sent", label: "Technical Task" },
         { id: "interviewing", label: "Interview" },
         { id: "hired", label: "Final Decision" }
     ];
 
     // Helper to check if a step is in timeline
-    const getTimelineEntry = (stepId) => timeline.find((t) => t.status === stepId);
+    const getTimelineEntry = (stepId) => {
+        // For technical task, any of these statuses count as reaching the step
+        if (stepId === "task_sent") {
+            return timeline.find(t => ["task_sent", "task_accepted", "task_submitted"].includes(t.status));
+        }
+        // For interview, interview_selected or interviewing count
+        if (stepId === "interviewing") {
+            return timeline.find(t => ["interview_selected", "interviewing"].includes(t.status));
+        }
+        return timeline.find((t) => t.status === stepId);
+    };
 
     // Determine current logical step index
     let currentStepIndex = -1;
+    const trackerStatuses = ["submitted", "seen", "shortlisted", "task_sent", "task_accepted", "task_submitted", "interview_selected", "interviewing", "hired"];
+    
     for (const step of timeline) {
-        const index = standardSteps.findIndex(s => s.id === step.status);
+        let logicalId = step.status;
+        if (["task_sent", "task_accepted", "task_submitted"].includes(logicalId)) logicalId = "task_sent";
+        if (["interview_selected", "interviewing"].includes(logicalId)) logicalId = "interviewing";
+        
+        const index = standardSteps.findIndex(s => s.id === logicalId);
         if (index > currentStepIndex) currentStepIndex = index;
     }
 
@@ -111,9 +129,44 @@ export default function ApplicationPulseTracker({ application }) {
                             <div className="flex-1 pb-2">
                                 <h4 className={`text-lg font-bold mb-0.5 transition-colors duration-500 ${isCurrent ? 'text-indigo-600' : 'text-slate-900'}`}>
                                     {step.label}
+                                    {step.id === "task_sent" && isCompleted && (
+                                        <span className="ml-2 text-xs font-medium px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full border border-slate-200">
+                                            {status === "task_sent" ? "Assigned" : status === "task_accepted" ? "Accepted" : status === "task_submitted" ? "Submitted" : "Completed"}
+                                        </span>
+                                    )}
+                                    {step.id === "interviewing" && isCompleted && status === "interview_selected" && (
+                                        <span className="ml-2 text-xs font-medium px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-full border border-emerald-200">
+                                            Selected
+                                        </span>
+                                    )}
                                 </h4>
                                 {isCompleted ? (
-                                    <p className="text-xs font-bold text-slate-500">{formatDate(entry.timestamp)}</p>
+                                    <>
+                                        <p className="text-xs font-bold text-slate-500">{formatDate(entry.timestamp)}</p>
+                                        
+                                        {/* Action buttons based on step and status */}
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {step.id === "task_sent" && ["task_sent", "task_accepted"].includes(status) && (
+                                                <Link 
+                                                    href="/skill-test"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                                                >
+                                                    Go to My Tasks
+                                                    <ArrowRight className="w-3 h-3" />
+                                                </Link>
+                                            )}
+
+                                            {step.id === "interviewing" && ["interview_selected", "interviewing"].includes(status) && (
+                                                <Link 
+                                                    href="/interviews"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                                                >
+                                                    View Interview Details
+                                                    <Video className="w-3 h-3" />
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </>
                                 ) : (
                                     <p className="text-xs font-bold text-slate-400">Pending</p>
                                 )}

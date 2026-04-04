@@ -31,7 +31,7 @@ export default function SkillIntroPage() {
             Skill Verification Test
           </h1>
           <p className="text-slate-500 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-            Before you can apply for jobs, SkillMatch AI requires a one-time skill verification to ensure every candidate is judged by <strong className="text-slate-800">real ability</strong>, not just profile claims.
+            Before you can apply for jobs, JobMatch AI requires a one-time skill verification to ensure every candidate is judged by <strong className="text-slate-800">real ability</strong>, not just profile claims.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export default function SkillIntroPage() {
             </h2>
             <ul className="space-y-3">
               {[
-                "You cannot apply for any job on SkillMatch AI",
+                "You cannot apply for any job on JobMatch AI",
                 "Recruiters will not see your profile as verified",
                 "Your profile will not receive the Skill Verified Badge",
               ].map((item) => (

@@ -9,12 +9,12 @@ export default function TermsOfServicePage() {
         {
             title: "1. Acceptance of Terms",
             icon: <FileCheck className="w-5 h-5 text-indigo-600" />,
-            content: "By accessing or using SkillMatch AI, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this site."
+            content: "By accessing or using JobMatch AI, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this site."
         },
         {
             title: "2. Use License",
             icon: <Info className="w-5 h-5 text-indigo-600" />,
-            content: "Permission is granted to temporarily download one copy of the materials (information or software) on SkillMatch AI for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title."
+            content: "Permission is granted to temporarily download one copy of the materials (information or software) on JobMatch AI for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title."
         },
         {
             title: "3. User Accounts",
@@ -29,7 +29,7 @@ export default function TermsOfServicePage() {
         {
             title: "5. Limitation of Liability",
             icon: <Scale className="w-5 h-5 text-indigo-600" />,
-            content: "In no event shall SkillMatch AI or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit) arising out of the use or inability to use the materials on SkillMatch AI."
+            content: "In no event shall JobMatch AI or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit) arising out of the use or inability to use the materials on JobMatch AI."
         },
         {
             title: "6. Support & Contact",

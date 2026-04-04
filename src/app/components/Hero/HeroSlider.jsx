@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Briefcase, Zap, Globe } from "lucide-react";
 
 const slides = [
   {
-    title: "Find Your Dream Job SkillMatch AI",
+    title: "Find Your Dream Job JobMatch AI",
     description: "Our AI-powered platform matches your unique skills with the perfect career opportunities.",
     icon: <Briefcase className="w-6 h-6 text-primary" />,
     image: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=2070&auto=format&fit=crop",
