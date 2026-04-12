@@ -6,14 +6,13 @@ import Navbar from "../components/Navbar/Navbar";
 import Footer from "../components/Footer/Footer";
 import { AlertCircle, Clock, Send, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { API_BASE } from "../lib/apiClient";
+import api, { API_BASE } from "../lib/apiClient";
 
 export default function SkillTestPage() {
-    const { user, isAuthenticated, loading } = useAuth();
+    const { user, userProfile, isAuthenticated, loading } = useAuth();
     const router = useRouter();
     const apiBase = API_BASE;
 
-    const [profile, setProfile] = useState(null);
     const [pageStatus, setPageStatus] = useState("loading"); // loading, selection, instruction, testing, submitting, result
     const [errorMsg, setErrorMsg] = useState("");
     const [warnMsg, setWarnMsg] = useState("");
@@ -32,6 +31,7 @@ export default function SkillTestPage() {
     const [resultData, setResultData] = useState(null); // { score, result, feedback, ... }
 
     const checkTestingEligibility = useCallback((p) => {
+        if (!p) return;
         // Did they fail recently? Check cooldown
         if (p.nextAttemptTime) {
             const nextTime = new Date(p.nextAttemptTime);
@@ -66,35 +66,20 @@ export default function SkillTestPage() {
         setPageStatus("selection");
     }, []);
 
-    const fetchProfile = useCallback(async () => {
-        try {
-            if (!user?.uid) return;
-            const res = await fetch(`${apiBase}/api/auth/profile/${user.uid}`);
-            const data = await res.json();
-            if (data.success) {
-                const p = data.data;
-                setProfile(p);
-                checkTestingEligibility(p);
-            } else {
-                setErrorMsg("Failed to load profile.");
-                setPageStatus("error");
-            }
-        } catch (err) {
-            console.error(err);
-            setErrorMsg("Error fetching profile.");
-            setPageStatus("error");
-        }
-    }, [apiBase, checkTestingEligibility, user]);
-
-    // Fetch Profile
+    // Effect to check eligibility once userProfile is available
     useEffect(() => {
         if (loading) return;
         if (!isAuthenticated) {
             router.push("/signin");
             return;
         }
-        fetchProfile();
-    }, [fetchProfile, isAuthenticated, loading, router]);
+        if (userProfile) {
+            checkTestingEligibility(userProfile);
+        } else if (!loading) {
+            // Profile failed to load or doesn't exist yet
+            setPageStatus("loading"); 
+        }
+    }, [checkTestingEligibility, isAuthenticated, loading, router, userProfile]);
 
     const startTestGeneration = async () => {
         if (selectedSkills.length === 0) return;
@@ -102,13 +87,9 @@ export default function SkillTestPage() {
         setErrorMsg("");
 
         try {
-            const res = await fetch(`${apiBase}/api/skill-test/generate`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ candidateId: user.uid, skills: selectedSkills })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            const res = await api.post("/api/skill-test/generate", { candidateId: user.uid, skills: selectedSkills });
+            const data = res.data;
+            if (res.status === 200 && data.success) {
                 setTestData(data.data);
                 // Initialize empty answers
                 const initAnswers = {};
@@ -139,17 +120,13 @@ export default function SkillTestPage() {
         }));
 
         try {
-            const res = await fetch(`${apiBase}/api/skill-test/submit`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    testId: testData.testId,
-                    candidateId: user.uid,
-                    answers: formattedAnswers,
-                }),
+            const res = await api.post("/api/skill-test/submit", {
+                testId: testData.testId,
+                candidateId: user.uid,
+                answers: formattedAnswers,
             });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            const data = res.data;
+            if (res.status === 200 && data.success) {
                 setResultData(data.data);
                 setPageStatus("result");
             } else {
@@ -161,7 +138,7 @@ export default function SkillTestPage() {
             setErrorMsg("Network error submitting test.");
             setPageStatus("error");
         }
-    }, [answers, apiBase, testData, user]);
+    }, [answers, testData, user]);
 
     const handleSubmitTestRef = useRef(handleSubmitTest);
     useEffect(() => {

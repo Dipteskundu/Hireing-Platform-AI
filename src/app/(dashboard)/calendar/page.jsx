@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
-import { authedFetch } from "../../lib/authedFetch";
+import api, { API_BASE } from "../../lib/apiClient";
 import dynamic from "next/dynamic";
 import { Loader2, CalendarDays } from "lucide-react";
 
@@ -30,29 +29,21 @@ function CalendarSkeleton() {
 }
 
 export default function CalendarPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, role, isAuthenticated } = useAuth();
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState("candidate");
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.uid) return;
+    if (!isAuthenticated || !user?.uid || !role) return;
 
     const fetchData = async () => {
       try {
-        // Get profile to determine role
-        const profileRes = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-        const profileData = await profileRes.json();
-        const userRole = profileData.data?.role || "candidate";
-        setRole(userRole);
-
-        // Fetch interviews based on role
-        const endpoint = userRole === "recruiter"
+        const endpoint = role === "recruiter"
           ? `/api/interviews/recruiter/${user.uid}`
           : `/api/interviews/candidate/${user.uid}`;
 
-        const res = await authedFetch(user, `${API_BASE}${endpoint}`);
-        const data = await res.json();
+        const res = await api.get(endpoint);
+        const data = res.data;
         if (data.success) setInterviews(data.interviews || []);
       } catch (err) {
         console.error("Failed to fetch calendar data:", err);
@@ -62,7 +53,7 @@ export default function CalendarPage() {
     };
 
     fetchData();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, role]);
 
   if (!isAuthenticated) return null;
 

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/AuthContext";
-import { API_BASE } from "../lib/apiClient";
+import api, { API_BASE } from "../lib/apiClient";
 
 const acceptedTypes = [
   "application/pdf",
@@ -69,15 +69,9 @@ export default function ResumePage() {
       formData.append("resume", file);
       formData.append("candidateId", user.uid);
 
-      const response = await fetch(`${API_BASE}/api/resume/upload`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await api.post("/api/resume/upload", formData);
 
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.message || "Resume upload failed.");
-      }
+      const payload = response.data;
 
       setResult(payload?.data || null);
       setSuccess(

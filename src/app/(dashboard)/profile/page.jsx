@@ -10,40 +10,33 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import Avatar from "../../components/common/Avatar";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, userProfile: profile, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push("/signin");
   }, [isAuthenticated, authLoading, router]);
 
-  const fetchProfile = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-      const json = await res.json();
-      if (json.success) setProfile(json.data);
-    } catch (err) {
-      console.error("Error fetching profile:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.uid]);
-
-  useEffect(() => {
-    if (user?.uid) fetchProfile();
-  }, [user?.uid, fetchProfile]);
-
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-[#f4f6fb] flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
+    );
+  }
+
+  if (!profile && !authLoading) {
+    return (
+        <div className="min-h-screen bg-[#f4f6fb] flex flex-col items-center justify-center p-4">
+             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <Briefcase className="w-8 h-8 text-slate-300" />
+            </div>
+            <p className="text-slate-500 font-medium">Profile not found.</p>
+            <button onClick={() => window.location.reload()} className="mt-4 text-indigo-600 font-bold hover:underline">Retry</button>
+        </div>
     );
   }
 

@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
-import { authedFetch } from "../../lib/authedFetch";
+import api, { API_BASE } from "../../lib/apiClient";
 import {
   Users, User, SlidersHorizontal, Star, X, Loader2,
   ChevronLeft, ChevronRight, BadgeCheck, MoreVertical,
@@ -50,8 +49,8 @@ export default function ApplicantsPage() {
   const fetchApplicants = useCallback(async () => {
     if (!user?.uid) return;
     try {
-      const res = await fetch(`${API_BASE}/api/applications/recruiter/${user.uid}`);
-      const data = await res.json();
+      const res = await api.get(`/api/applications/recruiter/${user.uid}`);
+      const data = res.data;
       if (data.success) setApplicants(data.applications || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -61,12 +60,8 @@ export default function ApplicantsPage() {
 
   const handleStatusChange = async (appId, newStatus) => {
     try {
-      const res = await fetch(`${API_BASE}/api/applications/${appId}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) setApplicants(prev => prev.map(a => a._id === appId ? { ...a, status: newStatus } : a));
+      const res = await api.put(`/api/applications/${appId}/status`, { status: newStatus });
+      if (res.status === 200 || res.data.success) setApplicants(prev => prev.map(a => a._id === appId ? { ...a, status: newStatus } : a));
     } catch (err) { console.error(err); }
     setOpenMenuId(null);
   };
@@ -82,18 +77,13 @@ export default function ApplicantsPage() {
   };
 
   const handleInterviewScheduled = async (interviewData) => {
-    try {
-      const res = await authedFetch(user, `${API_BASE}/api/interviews/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(interviewData),
-      });
-      const result = await res.json();
-      if (result.success) {
-        const appId = applicants.find(a => a._id === interviewData.applicationId)?._id;
-        if (appId) setApplicants(prev => prev.map(a => a._id === appId ? { ...a, status: "interviewing" } : a));
-      }
-    } catch (err) { throw err; }
+    const res = await api.post("/api/interviews/schedule", interviewData);
+    const result = res.data;
+    if (result.success) {
+      const appId = applicants.find(a => a._id === interviewData.applicationId)?._id;
+      if (appId) setApplicants(prev => prev.map(a => a._id === appId ? { ...a, status: "interviewing" } : a));
+    }
+    setShowInterviewScheduler(false);
   };
 
   const filteredApplicants = applicants.filter(app => {

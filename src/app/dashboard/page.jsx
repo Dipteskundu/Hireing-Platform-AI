@@ -10,7 +10,7 @@ import RecruiterDashboard from "./components/RecruiterDashboard";
 import AdminDashboard from "./components/AdminDashboard";
 import DashboardSidebar from "./components/DashboardSidebar";
 import NotificationPanel from "../components/Notifications/NotificationPanel";
-import { API_BASE } from "../lib/apiClient";
+import api, { API_BASE } from "../lib/apiClient";
 import { useTheme } from "../lib/ThemeContext";
 
 const ROLE_CONFIG = {
@@ -38,8 +38,7 @@ const ROLE_CONFIG = {
 };
 
 export default function Dashboard() {
-    const { user, isAuthenticated } = useAuth();
-    const [userProfile, setUserProfile] = useState(null);
+    const { user, userProfile, role, isAuthenticated, loading: authLoading } = useAuth();
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -49,24 +48,20 @@ export default function Dashboard() {
     const { theme, toggleTheme, mounted } = useTheme();
 
     useEffect(() => {
-        if (!user?.uid) return;
-        const fetchAll = async () => {
+        if (authLoading || !user?.uid || !role) return;
+
+        const fetchDashboardData = async () => {
             setLoading(true);
             try {
-                const profileRes = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-                const profileData = await profileRes.json();
-                const profile = profileData.data || {};
-                setUserProfile(profile);
-
-                const role = profile.role || "candidate";
                 let dashUrl = "";
                 if (role === "candidate") dashUrl = `/api/dashboard/candidate/${user.uid}`;
                 else if (role === "recruiter") dashUrl = `/api/dashboard/recruiter/${user.uid}`;
                 else if (role === "admin") dashUrl = `/api/dashboard/admin`;
 
-                const dashRes = await fetch(`${API_BASE}${dashUrl}`);
-                const dashJson = await dashRes.json();
-                setDashboardData(dashJson.data || null);
+                if (dashUrl) {
+                    const dashRes = await api.get(dashUrl);
+                    setDashboardData(dashRes.data.data || null);
+                }
             } catch (err) {
                 console.error("Dashboard fetch error:", err);
                 setError("Could not load dashboard data. The backend may be offline.");
@@ -74,16 +69,16 @@ export default function Dashboard() {
                 setLoading(false);
             }
         };
-        fetchAll();
-    }, [user?.uid]);
+
+        fetchDashboardData();
+    }, [user?.uid, role, authLoading]);
 
     useEffect(() => {
         if (!user?.uid) return;
         const fetchUnread = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/notifications/${user.uid}`);
-                if (!res.ok) return;
-                const json = await res.json();
+                const res = await api.get(`/api/notifications/${user.uid}`);
+                const json = res.data;
                 if (json.success && json.data) setUnreadCount(json.data.unreadCount || 0);
             } catch { /* ignore */ }
         };
@@ -114,7 +109,6 @@ export default function Dashboard() {
         );
     }
 
-    const role = userProfile?.role || "candidate";
     const roleConfig = ROLE_CONFIG[role] || ROLE_CONFIG.candidate;
     const RoleIcon = roleConfig.icon;
     const firstName = (userProfile?.displayName || user?.displayName || "there").split(" ")[0];

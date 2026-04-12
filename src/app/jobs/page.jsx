@@ -25,7 +25,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageWrapper from "../components/common/PageWrapper";
-import { API_BASE } from "../lib/apiClient";
+import api, { API_BASE } from "../lib/apiClient";
 
 const JOBS_PER_PAGE = 9;
 
@@ -142,7 +142,7 @@ function Pagination({ current, total, onChange }) {
 }
 
 export default function JobsPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, role, isAuthenticated } = useAuth();
   const router = useRouter();
   const apiBase = API_BASE;
 
@@ -163,17 +163,8 @@ export default function JobsPage() {
 
   /* ── Recruiter apply guard ────────────────────── */
   const [showRecruiterModal, setShowRecruiterModal] = useState(false);
-  const [userRole, setUserRole] = useState(null);
 
-  useEffect(() => {
-    if (!isAuthenticated || !user?.uid) return;
-    fetch(`${API_BASE}/api/auth/profile/${user.uid}`)
-      .then(r => r.json())
-      .then(d => { if (d.success) setUserRole(d.data?.role || "candidate"); })
-      .catch(() => {});
-  }, [isAuthenticated, user?.uid]);
-
-  const isRecruiter = userRole === "recruiter";
+  const isRecruiter = role === "recruiter";
 
   /* ── Fit Map ──────────────────────────────────── */
   const [fitJob, setFitJob] = useState(null);
@@ -189,19 +180,13 @@ export default function JobsPage() {
   useEffect(() => {
     async function fetchJobs() {
       try {
-        const res = await fetch(`${apiBase}/api/jobs`);
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const json = await res.json();
-        setJobs(json.data || []);
+        const res = await api.get("/api/jobs");
+        setJobs(res.data.data || []);
         // If user is authenticated, also fetch their applications to hide applied jobs
         if (isAuthenticated && user?.uid) {
           try {
-            const dashRes = await fetch(
-              `${apiBase}/api/dashboard/candidate/${user.uid}`,
-            );
-            if (dashRes.ok) {
-              const dashJson = await dashRes.json();
-              const apps = dashJson.data?.applications || [];
+            const dashRes = await api.get(`/api/dashboard/candidate/${user.uid}`);
+            const apps = dashRes.data.data?.applications || [];
               const ids = new Set();
               const normalize = (val) => {
                 if (!val) return "";
@@ -221,7 +206,6 @@ export default function JobsPage() {
                 if (jid) ids.add(jid);
               });
               setAppliedJobIds(ids);
-            }
           } catch (err) {
             console.error("Failed to fetch candidate applications:", err);
           }
@@ -370,15 +354,8 @@ export default function JobsPage() {
 
     try {
       // Check verification first
-      const res = await fetch(
-        `${apiBase}/api/jobs/${job._id}/pre-apply-check`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid: user.uid }),
-        },
-      );
-      const data = await res.json();
+      const res = await api.post(`/api/jobs/${job._id}/pre-apply-check`, { uid: user.uid });
+      const data = res.data;
 
       if (data.allowed) {
         // Verified: proceed to Skill Gap Analysis page
@@ -401,12 +378,8 @@ export default function JobsPage() {
       return;
     }
     try {
-      const res = await fetch(`${apiBase}/api/jobs/${job._id}/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid, email: user.email }),
-      });
-      if (res.ok) {
+      const res = await api.post(`/api/jobs/${job._id}/save`, { uid: user.uid, email: user.email });
+      if (res.status === 200 || res.data.success) {
         setInfoMessage("Job saved to your account ✓");
         setTimeout(() => setInfoMessage(""), 3000);
       }

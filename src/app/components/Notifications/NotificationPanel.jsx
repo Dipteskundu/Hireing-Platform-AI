@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { ref, onChildAdded } from "firebase/database";
 import { rtdb } from "../../lib/firebaseClient";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import { safeError } from "../../lib/logger";
 
 const TYPE_CONFIG = {
@@ -108,13 +108,10 @@ export default function NotificationPanel({
     if (!uid) return;
     let mounted = true;
 
-    fetch(new URL(`/api/notifications/${uid}`, apiBase).toString())
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((json) => {
+    api.get(`/api/notifications/${uid}`)
+      .then((res) => {
         if (!mounted) return;
+        const json = res.data;
         if (json.success && json.data) {
           const fetchedNotifs = json.data.notifications || [];
           setNotifications(fetchedNotifs);
@@ -179,11 +176,8 @@ export default function NotificationPanel({
     // Only mark as read if it's currently unread
     if (!notif.read) {
       try {
-        const res = await fetch(
-          new URL(`/api/notifications/${id}/read`, apiBase).toString(),
-          { method: "PATCH" },
-        );
-        const json = await res.json();
+        const res = await api.patch(`/api/notifications/${id}/read`);
+        const json = res.data;
         if (json.success) {
           setNotifications((prev) =>
             prev.map((n) =>
@@ -202,11 +196,8 @@ export default function NotificationPanel({
 
   async function markAllRead() {
     try {
-      const res = await fetch(
-        new URL(`/api/notifications/read-all/${uid}`, apiBase).toString(),
-        { method: "PATCH" },
-      );
-      const json = await res.json();
+      const res = await api.patch(`/api/notifications/read-all/${uid}`);
+      const json = res.data;
       if (json.success) {
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         if (setParentUnreadCount) {

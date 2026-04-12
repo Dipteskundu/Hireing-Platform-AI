@@ -9,7 +9,7 @@ import {
 import Skeleton from "../../components/common/Skeleton";
 import { useScrollReveal } from "../../lib/useScrollReveal";
 import { AdminGrowthChart, AdminStatsChart } from "./DashboardCharts";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 
 function StatCard({ label, value, icon: Icon, color, bg }) {
     return (
@@ -72,20 +72,16 @@ export default function AdminDashboard({ user, data, loading }) {
 
     const handleJobAction = async (jobId, action) => {
         try {
-            let url = "";
-            let method = "PUT";
-
+            let res;
             if (action === "approve") {
-                url = `${API_BASE}/api/admin/jobs/${jobId}/approve`;
+                res = await api.put(`/api/admin/jobs/${jobId}/approve`);
             } else if (action === "reject") {
-                url = `${API_BASE}/api/admin/jobs/${jobId}/reject`;
+                res = await api.put(`/api/admin/jobs/${jobId}/reject`);
             } else if (action === "delete") {
-                url = `${API_BASE}/api/admin/jobs/${jobId}`;
-                method = "DELETE";
+                res = await api.delete(`/api/admin/jobs/${jobId}`);
             }
-
-            const res = await fetch(url, { method });
-            const result = await res.json();
+ 
+            const result = res.data;
 
             if (result.success) {
                 setActionMsg({ jobId, action });

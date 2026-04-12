@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../../lib/AuthContext";
-import { API_BASE } from "../../../lib/apiClient";
+import api, { API_BASE } from "../../../lib/apiClient";
 import { Briefcase, Loader2, AlertCircle, Search, Building, MapPin, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function ApprovedJobsPage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, role, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,18 +23,15 @@ export default function ApprovedJobsPage() {
       return;
     }
 
-    const verifyAdminAndFetch = async () => {
-      try {
-        const profileRes = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-        const profileData = await profileRes.json();
-        
-        if (profileData?.data?.role !== "admin") {
-          router.push("/dashboard");
-          return;
-        }
+    if (role !== "admin") {
+      router.push("/dashboard");
+      return;
+    }
 
-        const res = await fetch(`${API_BASE}/api/admin/jobs/approved`);
-        const json = await res.json();
+    const fetchJobs = async () => {
+      try {
+        const res = await api.get(`/api/admin/jobs/approved`);
+        const json = res.data;
         if (json.success) {
           setJobs(json.data || []);
         } else {
@@ -47,8 +44,8 @@ export default function ApprovedJobsPage() {
       }
     };
 
-    if (user?.uid) verifyAdminAndFetch();
-  }, [authLoading, isAuthenticated, user, router]);
+    fetchJobs();
+  }, [authLoading, isAuthenticated, role, router]);
 
   const filteredJobs = jobs.filter(
     (j) =>

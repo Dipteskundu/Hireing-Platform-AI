@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageWrapper from "../components/common/PageWrapper";
-import { API_BASE } from "../lib/apiClient";
+import api, { API_BASE } from "../lib/apiClient";
 
 const COMPANIES_PER_PAGE = 9;
 
@@ -117,10 +117,8 @@ export default function CompaniesPage() {
   useEffect(() => {
     async function fetchCompanies() {
       try {
-        const res = await fetch(`${apiBase}/api/v1/companies`);
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const json = await res.json();
-        setCompanies(json.data || []);
+        const res = await api.get("/api/v1/companies");
+        setCompanies(res.data.data || []);
       } catch (err) {
         console.error("Failed to fetch companies", err);
         setError("Could not load companies. Please try again later.");
@@ -199,15 +197,8 @@ export default function CompaniesPage() {
       return;
     }
     try {
-      const res = await fetch(
-        `${apiBase}/api/v1/companies/${company._id}/follow`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid: user.uid, email: user.email }),
-        },
-      );
-      if (res.ok) {
+      const res = await api.post(`/api/v1/companies/${company._id}/follow`, { uid: user.uid, email: user.email });
+      if (res.status === 200 || res.data.success) {
         setInfoMessage(`Now following ${company.name} ✓`);
         setTimeout(() => setInfoMessage(""), 3000);
       }

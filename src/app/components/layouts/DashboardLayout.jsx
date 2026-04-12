@@ -10,14 +10,12 @@ import Avatar from "../common/Avatar";
 import PageTransition from "../common/PageTransition";
 import DashboardSidebar from "../../dashboard/components/DashboardSidebar";
 import NotificationPanel from "../Notifications/NotificationPanel";
-import { API_BASE } from "../../lib/apiClient";
 
 export default function DashboardLayout({ children }) {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, userProfile, role: contextRole, isAuthenticated, loading: authLoading } = useAuth();
   const { theme, toggleTheme, mounted } = useTheme();
   const router = useRouter();
 
-  const [userProfile, setUserProfile] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -31,21 +29,9 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     if (!user?.uid) return;
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-        const json = await res.json();
-        if (json.success) setUserProfile(json.data);
-      } catch { /* ignore */ }
-    };
-    fetchProfile();
-  }, [user?.uid]);
-
-  useEffect(() => {
-    if (!user?.uid) return;
     const fetchUnread = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/notifications/${user.uid}`);
+        const res = await fetch(`/api/notifications/${user.uid}`);
         if (!res.ok) return;
         const json = await res.json();
         if (json.success && json.data) setUnreadCount(json.data.unreadCount || 0);
@@ -56,7 +42,7 @@ export default function DashboardLayout({ children }) {
     return () => clearInterval(interval);
   }, [user?.uid]);
 
-  const role = userProfile?.role || "candidate";
+  const role = contextRole || "candidate";
   const firstName = (userProfile?.displayName || user?.displayName || "there").split(" ")[0];
 
   // Show spinner while auth is loading

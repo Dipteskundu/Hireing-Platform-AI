@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/AuthContext";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -44,17 +44,15 @@ export default function SkillGapAnalysisPage({ params }) {
       setError(null);
 
       // Job title/company (best-effort)
-      const jobRes = await fetch(`${apiBase}/api/jobs/${jobId}`);
-      if (jobRes.ok) {
-        const jobData = await jobRes.json();
+      const jobRes = await api.get(`/api/jobs/${jobId}`);
+      if (jobRes.status === 200) {
+        const jobData = jobRes.data;
         setJobTitle(jobData.data?.title || "Job");
         setCompany(jobData.data?.company || "");
       }
 
-      const res = await fetch(`${apiBase}/api/skill-gap/${jobId}/${user.uid}`);
-      if (!res.ok) throw new Error("Analysis failed to load");
-
-      const data = await res.json();
+      const res = await api.get(`/api/skill-gap/${jobId}/${user.uid}`);
+      const data = res.data;
 
       if (data.success) {
         setMatchScore(data.data.matchScore || 0);
@@ -70,7 +68,7 @@ export default function SkillGapAnalysisPage({ params }) {
     } finally {
       setLoading(false);
     }
-  }, [apiBase, jobId, user?.uid]);
+  }, [jobId, user?.uid]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -90,18 +88,14 @@ export default function SkillGapAnalysisPage({ params }) {
     try {
       if (!user?.uid) return;
       setApplying(true);
-      const res = await fetch(`${apiBase}/api/jobs/${jobId}/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-          jobTitle: jobTitle,
-          company: company,
-          location: "", // we don't have location here but it's optional
-        }),
+      const res = await api.post(`/api/jobs/${jobId}/apply`, {
+        uid: user.uid,
+        email: user.email,
+        jobTitle: jobTitle,
+        company: company,
+        location: "", // we don't have location here but it's optional
       });
-      const data = await res.json();
+      const data = res.data;
       if (res.ok && data.success) {
         router.push("/applications");
       } else {

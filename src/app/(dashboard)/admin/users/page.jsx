@@ -33,7 +33,7 @@ export default function AdminUsersPage() {
       if (search) params.set("search", search);
       if (roleFilter) params.set("role", roleFilter);
 
-      const res = await fetch(`${API_BASE}/api/admin/users?${params}`);
+      const res = await fetch(`/api/admin/users?${params}`);
       const data = await res.json();
       if (data.success) {
         setUsers(data.users || []);

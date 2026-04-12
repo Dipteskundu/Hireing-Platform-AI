@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
-import { authedFetch } from "../../lib/authedFetch";
+import api, { API_BASE } from "../../lib/apiClient";
 import { CalendarDays, User, Calendar, Loader2 } from "lucide-react";
 import PipelineLayout from "../../components/PipelineLayout/PipelineLayout";
 import InterviewScheduler from "../../components/InterviewScheduler/InterviewScheduler";
@@ -18,8 +17,8 @@ export default function InterviewSelectedPage() {
   const fetchCandidates = useCallback(async () => {
     if (!user?.uid) return;
     try {
-      const res = await fetch(`${API_BASE}/api/applications/recruiter/${user.uid}`);
-      const data = await res.json();
+      const res = await api.get(`/api/applications/recruiter/${user.uid}`);
+      const data = res.data;
       if (data.success) {
         setCandidates((data.applications || []).filter(a => a.status === "interview_selected"));
       }
@@ -45,18 +44,15 @@ export default function InterviewSelectedPage() {
   }, [user?.uid, fetchCandidates]);
 
   const handleScheduled = async (interviewData) => {
-    try {
-      const res = await authedFetch(user, `${API_BASE}/api/interviews/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(interviewData),
-      });
-      const result = await res.json();
-      if (result.success) {
-        const app = candidates.find((a) => a._id === interviewData.applicationId);
-        if (app?._id) setCandidates((prev) => prev.filter((a) => a._id !== app._id));
-      } else throw new Error(result.message);
-    } catch (err) { throw err; }
+    const res = await api.post("/api/interviews/schedule", interviewData);
+    const result = res.data;
+    if (result.success) {
+      const app = candidates.find((a) => a._id === interviewData.applicationId);
+      if (app?._id) setCandidates((prev) => prev.filter((a) => a._id !== app._id));
+    } else if (!result._serverError) {
+      throw new Error(result.message || "Failed to schedule interview.");
+    }
+    setShowInterviewScheduler(false);
   };
 
   if (!isAuthenticated) return null;

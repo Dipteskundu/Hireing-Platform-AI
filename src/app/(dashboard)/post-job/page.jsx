@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import {
   Briefcase, MapPin, DollarSign, Users, Calendar, Code,
   FileText, AlignLeft, CheckCircle, AlertCircle, Loader2, ArrowLeft,
@@ -33,18 +33,14 @@ export default function PostJobPage() {
     setPosting(true);
     setMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/api/jobs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
-          responsibilities: form.responsibilities.split("\n").map(r => r.trim()).filter(Boolean),
-          vacancies: form.vacancies ? parseInt(form.vacancies, 10) : null,
-          postedBy: user.uid,
-        }),
+      const res = await api.post("/api/jobs", {
+        ...form,
+        skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
+        responsibilities: form.responsibilities.split("\n").map(r => r.trim()).filter(Boolean),
+        vacancies: form.vacancies ? parseInt(form.vacancies, 10) : null,
+        postedBy: user.uid,
       });
-      const result = await res.json();
+      const result = res.data;
       if (result.success) {
         setMsg({ type: "success", text: "Job posted successfully! Redirecting..." });
         setTimeout(() => router.push("/my-jobs"), 1500);

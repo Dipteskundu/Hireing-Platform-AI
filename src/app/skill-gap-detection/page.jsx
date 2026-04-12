@@ -47,7 +47,7 @@ export default function SkillGapDetectionPage() {
     async function fetchJobs() {
       try {
         setLoading(true);
-        const res = await fetch(`${apiBase}/api/jobs`);
+        const res = await fetch(`/api/jobs`);
         if (!res.ok) throw new Error("Failed to fetch jobs");
         const data = await res.json();
         const list = Array.isArray(data) ? data : data.data || data.jobs || [];

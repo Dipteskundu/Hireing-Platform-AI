@@ -26,8 +26,9 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { API_BASE } from "../lib/apiClient";
+import api, { API_BASE } from "../lib/apiClient";
 import { devLog, devWarn, safeError } from "../lib/logger";
+import { useAuth } from "../lib/AuthContext";
 
 function normalizeAuthError(err) {
   const code = String(err?.code || "").toLowerCase();
@@ -44,6 +45,7 @@ function normalizeAuthError(err) {
 }
 
 export default function SignInPage() {
+  const { refreshUser } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -118,29 +120,25 @@ export default function SignInPage() {
     try {
       let existingRole = "candidate";
       try {
-        const profileRes = await fetch(`${apiBase}/api/auth/profile/${user.uid}`);
-        if (profileRes.ok) {
-          const profileData = await profileRes.json();
-          if (profileData.success && profileData.data?.role) {
-            existingRole = profileData.data.role;
-          }
+        const profileRes = await api.get(`/api/auth/profile/${user.uid}`);
+        if (profileRes.data.success && profileRes.data.data?.role) {
+          existingRole = profileRes.data.data.role;
         }
       } catch (err) {
         devLog("Could not fetch existing profile, using default role");
       }
 
-      await fetch(`${apiBase}/api/auth/sync-user`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          provider: user.providerData?.[0]?.providerId,
-          photoURL: user.photoURL,
-          role: existingRole,
-        }),
+      await api.post("/api/auth/sync-user", {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        provider: user.providerData?.[0]?.providerId,
+        photoURL: user.photoURL,
+        role: existingRole,
       });
+
+      // Refresh the local profile in AuthContext
+      await refreshUser();
     } catch (err) {
       safeError("Failed to sync user with backend", err);
     }

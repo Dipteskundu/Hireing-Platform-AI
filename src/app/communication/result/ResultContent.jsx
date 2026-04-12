@@ -35,7 +35,7 @@ export default function ResultContent() {
         }
 
         const apiBase = API_BASE;
-        fetch(`${apiBase}/api/communication/result/${sessionId}`)
+        fetch(`/api/communication/result/${sessionId}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data.success && data.data) {

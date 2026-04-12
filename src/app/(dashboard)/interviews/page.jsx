@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
-import { authedFetch } from "../../lib/authedFetch";
+import api, { API_BASE } from "../../lib/apiClient";
 import PipelineLayout from "../../components/PipelineLayout/PipelineLayout";
 import {
   Clock,
@@ -28,8 +27,7 @@ import InterviewDetailsModal from "../../components/InterviewDetailsModal/Interv
 import { devLog, safeError } from "../../lib/logger";
 
 export default function InterviewsPage() {
-  const { user, isAuthenticated } = useAuth();
-  const [userProfile, setUserProfile] = useState(null);
+  const { user, userProfile, role, isAuthenticated } = useAuth();
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,61 +37,42 @@ export default function InterviewsPage() {
   const [selectedInterview, setSelectedInterview] = useState(null);
   const router = useRouter();
 
-  const role = userProfile?.role || "recruiter"; // Default to recruiter to avoid breaking existing logic before profile loads
-
   const handleScheduleInterview = () => {
     setShowInterviewScheduler(true);
   };
 
   const handleInterviewScheduled = async (interviewData) => {
-    try {
-      const res = await authedFetch(user, `${API_BASE}/api/interviews/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(interviewData),
-      });
-
-      const result = await res.json();
-
-      if (result.success) {
-        await refreshInterviews();
-        setShowInterviewScheduler(false);
-        devLog("Interview scheduled successfully!");
-      } else {
-        throw new Error(result.message || "Failed to schedule interview");
-      }
-    } catch (error) {
-      safeError("Failed to schedule interview", error);
-      throw error;
+    const res = await api.post("/api/interviews/schedule", interviewData);
+    const result = res.data;
+    if (result.success) {
+      await refreshInterviews();
+      setShowInterviewScheduler(false);
+    } else if (!result._serverError) {
+      throw new Error(result.message || "Failed to schedule interview");
     }
+    setShowInterviewScheduler(false);
   };
 
   const refreshInterviews = useCallback(async () => {
-    if (!isAuthenticated || !user?.uid) return;
+    if (!isAuthenticated || !user?.uid || !role) return;
     try {
       setLoading(true);
-      const profileRes = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-      const profileData = await profileRes.json();
-      const profile = profileData.data || {};
-      setUserProfile(profile);
-
-      const currentRole = profile.role || "recruiter";
       const endpoint =
-        currentRole === "candidate"
+        role === "candidate"
           ? `/api/interviews/candidate`
           : `/api/interviews/recruiter`;
 
-      const response = await authedFetch(user, `${API_BASE}${endpoint}`);
-      if (!response.ok) throw new Error("Failed to fetch interviews");
-
-      const data = await response.json();
+      const response = await api.get(endpoint);
+      const data = response.data;
       if (data.success) setInterviews(data.interviews || []);
     } catch (err) {
-      setError(err.message);
+      // 500 = server Firebase config issue — show empty state, don't crash
+      if (err?.response?.status !== 500) setError(err.message);
+      setInterviews([]);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, role]);
 
   useEffect(() => {
     refreshInterviews();
@@ -109,28 +88,14 @@ export default function InterviewsPage() {
   }, [isAuthenticated, user?.uid, refreshInterviews]);
 
   const handleStatusChange = async (interviewId, newStatus) => {
-    try {
-      const response = await authedFetch(
-        user,
-        `${API_BASE}/api/interviews/${interviewId}/status`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        },
-      );
-
-      if (response.ok) {
-        setInterviews(
-          interviews.map((interview) =>
-            interview._id === interviewId
-              ? { ...interview, status: newStatus }
-              : interview,
-          ),
-        );
-      }
-    } catch (err) {
-      safeError("Failed to update interview status", err);
+    const response = await api.put(
+      `/api/interviews/${interviewId}/status`,
+      { status: newStatus }
+    );
+    if (response.data?.success) {
+      setInterviews(interviews.map((i) =>
+        i._id === interviewId ? { ...i, status: newStatus } : i,
+      ));
     }
   };
 

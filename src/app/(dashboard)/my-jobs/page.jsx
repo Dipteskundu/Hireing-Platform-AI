@@ -29,9 +29,7 @@ export default function MyJobsPage() {
 
     const fetchMyJobs = async () => {
       try {
-        const response = await fetch(
-          `${API_BASE}/api/jobs/my-jobs/${user.uid}`,
-        );
+        const response = await fetch(`/api/jobs/my-jobs/${user.uid}`);
         if (!response.ok) throw new Error("Failed to fetch jobs");
 
         const data = await response.json();
@@ -52,7 +50,7 @@ export default function MyJobsPage() {
     if (!confirm("Are you sure you want to request deletion for this job? An admin will need to approve this request.")) return;
 
     try {
-      const response = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
+      const response = await fetch(`/api/jobs/${jobId}`, {
         method: "DELETE",
       });
 

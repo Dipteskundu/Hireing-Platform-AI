@@ -11,9 +11,8 @@ import {
   ExternalLink,
   X,
 } from "lucide-react";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import { useAuth } from "../../lib/AuthContext";
-import { authedFetch } from "../../lib/authedFetch";
 import { devLog, safeError } from "../../lib/logger";
 
 export default function UpcomingInterviews({ uid }) {
@@ -40,8 +39,8 @@ export default function UpcomingInterviews({ uid }) {
         return;
       }
 
-      const res = await authedFetch(user, `${API_BASE}/api/interviews/candidate`);
-      const data = await res.json();
+      const res = await api.get("/api/interviews/candidate");
+      const data = res.data;
 
       devLog("Candidate interviews API response:", data);
 

@@ -35,7 +35,7 @@ export default function CommunicationTestPage() {
     setWarnMsg("");
 
     try {
-      const res = await fetch(`${apiBase}/api/verification/communication/start`, {
+      const res = await fetch(`/api/verification/communication/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId: user.uid }),
@@ -93,7 +93,7 @@ export default function CommunicationTestPage() {
       answer: String(answer || "").trim(),
     }));
     try {
-      const res = await fetch(`${apiBase}/api/verification/communication/submit`, {
+      const res = await fetch(`/api/verification/communication/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, answers: formattedAnswers }),

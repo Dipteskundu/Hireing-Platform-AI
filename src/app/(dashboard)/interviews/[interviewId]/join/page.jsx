@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "../../../../lib/AuthContext";
-import { API_BASE } from "../../../../lib/apiClient";
-import { authedFetch } from "../../../../lib/authedFetch";
+import api, { API_BASE } from "../../../../lib/apiClient";
 import { Loader2, ArrowLeft } from "lucide-react";
 
 export default function RecruiterJoinInterviewPage() {
@@ -20,8 +19,8 @@ export default function RecruiterJoinInterviewPage() {
     const fetchInterview = async () => {
       if (!isAuthenticated || !user?.uid) return;
       try {
-        const res = await authedFetch(user, `${API_BASE}/api/interviews/${params.interviewId}`);
-        const data = await res.json();
+        const res = await api.get(`/api/interviews/${params.interviewId}`);
+        const data = res.data;
         if (data.success) {
           // Verify that this recruiter owns the interview
           const intv = data.interview;

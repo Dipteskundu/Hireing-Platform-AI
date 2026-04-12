@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import ApplicationPulseTracker from "../../dashboard/components/candidate/ApplicationPulseTracker";
 
 export default function ApplicationsPage() {
@@ -20,16 +20,14 @@ export default function ApplicationsPage() {
     }
 
     const fetchApps = async () => {
-      try {
+    try {
         setLoading(true);
-        const res = await fetch(
-          `${API_BASE}/api/dashboard/candidate/${user.uid}`,
-        );
-        const json = await res.json();
-        if (res.ok && json.success) {
-          setApplications(json.data.applications || []);
+        const res = await api.get(`/api/dashboard/candidate/${user.uid}`);
+        const json = res.data;
+        if (json.success) {
+            setApplications(json.data.applications || []);
         } else {
-          setError(json.message || "Failed to load applications");
+            setError(json.message || "Failed to load applications");
         }
       } catch (err) {
         console.error(err);

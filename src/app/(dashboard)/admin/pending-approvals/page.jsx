@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../../lib/AuthContext";
-import { API_BASE } from "../../../lib/apiClient";
+import api, { API_BASE } from "../../../lib/apiClient";
 import { ShieldCheck, Loader2, AlertCircle, Search, Building, MapPin, Clock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function PendingApprovalsPage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, role, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,18 +23,15 @@ export default function PendingApprovalsPage() {
       return;
     }
 
-    const verifyAdminAndFetch = async () => {
-      try {
-        const profileRes = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-        const profileData = await profileRes.json();
-        
-        if (profileData?.data?.role !== "admin") {
-          router.push("/dashboard");
-          return;
-        }
+    if (role !== "admin") {
+      router.push("/dashboard");
+      return;
+    }
 
-        const res = await fetch(`${API_BASE}/api/admin/jobs/pending`);
-        const json = await res.json();
+    const fetchJobs = async () => {
+      try {
+        const res = await api.get(`/api/admin/jobs/pending`);
+        const json = res.data;
         if (json.success) {
           setJobs(json.data || []);
         } else {
@@ -47,14 +44,14 @@ export default function PendingApprovalsPage() {
       }
     };
 
-    if (user?.uid) verifyAdminAndFetch();
-  }, [authLoading, isAuthenticated, user, router]);
+    fetchJobs();
+  }, [authLoading, isAuthenticated, role, router]);
 
   const handleAction = async (jobId, action) => {
     try {
-      const url = `${API_BASE}/api/admin/jobs/${jobId}/${action}`;
-      const res = await fetch(url, { method: "PUT" });
-      const result = await res.json();
+      const url = `/api/admin/jobs/${jobId}/${action}`;
+      const res = await api.put(url);
+      const result = res.data;
 
       if (result.success) {
         setJobs((prev) => prev.filter((j) => j._id !== jobId));

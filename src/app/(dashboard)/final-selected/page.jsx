@@ -15,7 +15,7 @@ export default function FinalSelectedPage() {
   const fetchCandidates = useCallback(async () => {
     if (!user?.uid) return;
     try {
-      const res = await fetch(`${API_BASE}/api/applications/recruiter/${user.uid}`);
+      const res = await fetch(`/api/applications/recruiter/${user.uid}`);
       const data = await res.json();
       if (data.success) {
         setCandidates((data.applications || []).filter(a => a.status === "final_selected" || a.status === "hired"));
@@ -35,7 +35,7 @@ export default function FinalSelectedPage() {
   const handleHire = async (app) => {
     setHiringId(app._id);
     try {
-      const res = await fetch(`${API_BASE}/api/applications/${app._id}/status`, {
+      const res = await fetch(`/api/applications/${app._id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "hired" }),

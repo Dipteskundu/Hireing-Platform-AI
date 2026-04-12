@@ -76,7 +76,7 @@ function SidebarInner({
       <div className="flex items-center justify-between px-4 h-16 border-b border-slate-100 shrink-0 animate-slide-down">
         {!isCollapsed && (
           <Link href="/" className="text-[16px] font-black text-slate-900 tracking-tight hover-scale">
-            Skill<span className="text-indigo-600">Match</span>
+            Job<span className="text-indigo-600">Match</span>
           </Link>
         )}
         {isMobile ? (

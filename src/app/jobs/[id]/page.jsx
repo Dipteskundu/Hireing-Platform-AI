@@ -6,7 +6,7 @@ import Link from "next/link";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import {
   ArrowLeft,
   Building2,
@@ -28,7 +28,7 @@ import {
 export default function JobDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, role, isAuthenticated, loading: authLoading } = useAuth();
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,17 +36,8 @@ export default function JobDetailsPage() {
   const [saved, setSaved] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const [showRecruiterModal, setShowRecruiterModal] = useState(false);
-  const [userRole, setUserRole] = useState(null);
 
-  useEffect(() => {
-    if (!isAuthenticated || !user?.uid) return;
-    fetch(`${API_BASE}/api/auth/profile/${user.uid}`)
-      .then(r => r.json())
-      .then(d => { if (d.success) setUserRole(d.data?.role || "candidate"); })
-      .catch(() => {});
-  }, [isAuthenticated, user?.uid]);
-
-  const isRecruiter = userRole === "recruiter";
+  const isRecruiter = role === "recruiter";
 
   // Compute deadline state after job loads
   const isDeadlinePassed = job?.deadline ? new Date(job.deadline) < new Date() : false;
@@ -71,10 +62,8 @@ export default function JobDetailsPage() {
     if (!id) return;
     const fetchJob = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/jobs/${id}`);
-        if (!res.ok) throw new Error("Job not found");
-        const json = await res.json();
-        setJob(json.data || json);
+        const res = await api.get(`/api/jobs/${id}`);
+        setJob(res.data.data || res.data);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -88,12 +77,8 @@ export default function JobDetailsPage() {
     if (!isAuthenticated) { router.push("/signin"); return; }
     if (isRecruiter) { setShowRecruiterModal(true); return; }
     try {
-      const res = await fetch(`${API_BASE}/api/jobs/${id}/pre-apply-check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid }),
-      });
-      const data = await res.json();
+      const res = await api.post(`/api/jobs/${id}/pre-apply-check`, { uid: user.uid });
+      const data = res.data;
       if (data.allowed) {
         router.push(`/skill-gap-analysis/${id}`);
       } else if (data.redirectTo) {
@@ -109,12 +94,8 @@ export default function JobDetailsPage() {
   const handleSave = async () => {
     if (!isAuthenticated) { router.push("/signin"); return; }
     try {
-      const res = await fetch(`${API_BASE}/api/jobs/${id}/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid, email: user.email }),
-      });
-      if (res.ok) {
+      const res = await api.post(`/api/jobs/${id}/save`, { uid: user.uid, email: user.email });
+      if (res.status === 200 || res.data.success) {
         setSaved(true);
         setSaveMsg("Saved!");
         setTimeout(() => setSaveMsg(""), 2500);

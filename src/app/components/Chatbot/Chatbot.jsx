@@ -93,7 +93,7 @@ export default function Chatbot() {
         if (user && typeof user.getIdToken === "function") {
           token = await user.getIdToken();
         }
-        const response = await fetch(API_BASE + "/api/chatbot/ask", {
+        const response = await fetch("/api/chatbot/ask", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

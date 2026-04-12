@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Send, Calendar, X, Lightbulb, BarChart2, Loader2 } from "lucide-react";
 import PipelineLayout from "../../components/PipelineLayout/PipelineLayout";
@@ -30,9 +30,9 @@ export default function TaskAssignmentPage() {
 
   useEffect(() => {
     if (!user?.uid) return;
-    fetch(`${API_BASE}/api/applications/recruiter/${user.uid}`)
-      .then(r => r.json())
-      .then(d => {
+    api.get(`/api/applications/recruiter/${user.uid}`)
+      .then(res => {
+        const d = res.data;
         if (d.success) {
           const apps = d.applications || [];
           setPipelineStats({
@@ -60,13 +60,9 @@ export default function TaskAssignmentPage() {
         jobId: jobId || null,
         applicantIds: singleAppId ? [singleAppId] : [],
       };
-      const res = await fetch(`${API_BASE}/api/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await res.json();
-      if (!res.ok || !result.success) throw new Error(result.message || "Failed to assign task");
+      const res = await api.post("/api/tasks", payload);
+      const result = res.data;
+      if (!result.success) throw new Error(result.message || "Failed to assign task");
       setSuccess(true);
       setTimeout(() => router.push("/shortlisted"), 2000);
     } catch (err) {

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "../../../lib/AuthContext";
-import { API_BASE } from "../../../lib/apiClient";
+import api, { API_BASE } from "../../../lib/apiClient";
 import {
   MapPin, Mail, Phone, Globe, Award, BookOpen, Briefcase,
   Linkedin, Github, Twitter, ExternalLink, Code2, BadgeCheck, ArrowLeft,
@@ -21,9 +21,11 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     if (!uid) return;
-    fetch(`${API_BASE}/api/auth/profile/${uid}`)
-      .then(r => r.json())
-      .then(d => { if (d.success) setProfile(d.data); })
+    api.get(`/api/auth/profile/${uid}`)
+      .then(res => { 
+        const d = res.data;
+        if (d.success) setProfile(d.data); 
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [uid]);

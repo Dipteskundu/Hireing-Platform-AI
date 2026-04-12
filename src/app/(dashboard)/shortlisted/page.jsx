@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
-import { authedFetch } from "../../lib/authedFetch";
+import api, { API_BASE } from "../../lib/apiClient";
 import { useRouter } from "next/navigation";
 import {
   Star, User, Users, MapPin, Calendar, Send, Trash2, Eye, Loader2, X, ArrowUpRight
@@ -28,8 +27,8 @@ export default function ShortlistedPage() {
   const fetchShortlisted = useCallback(async () => {
     if (!user?.uid) return;
     try {
-      const res = await fetch(`${API_BASE}/api/applications/recruiter/${user.uid}`);
-      const data = await res.json();
+      const res = await api.get(`/api/applications/recruiter/${user.uid}`);
+      const data = res.data;
       if (data.success) {
         setShortlistedApps((data.applications || []).filter(app => app.status === "shortlisted"));
       }
@@ -47,12 +46,8 @@ export default function ShortlistedPage() {
 
   const handleStatusChange = async (appId, newStatus) => {
     try {
-      const res = await fetch(`${API_BASE}/api/applications/${appId}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
+      const res = await api.put(`/api/applications/${appId}/status`, { status: newStatus });
+      if (res.status === 200 || res.data.success) {
         setShortlistedApps(prev => prev.filter(app => app._id !== appId));
       }
     } catch (error) {
@@ -78,24 +73,21 @@ export default function ShortlistedPage() {
   };
 
   const handleInterviewScheduled = async (interviewData) => {
-    try {
-      const res = await authedFetch(user, `${API_BASE}/api/interviews/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(interviewData),
-      });
-      const result = await res.json();
-      if (result.success) {
-        const applicationId = shortlistedApps.find((app) => app._id === interviewData.applicationId)?._id;
-        if (applicationId) setShortlistedApps((prev) => prev.filter((app) => app._id !== applicationId));
-      } else throw new Error(result.message);
-    } catch (error) { throw error; }
+    const res = await api.post("/api/interviews/schedule", interviewData);
+    const result = res.data;
+    if (result.success) {
+      const applicationId = shortlistedApps.find((app) => app._id === interviewData.applicationId)?._id;
+      if (applicationId) setShortlistedApps((prev) => prev.filter((app) => app._id !== applicationId));
+    } else if (!result._serverError) {
+      throw new Error(result.message || "Failed to schedule interview.");
+    }
+    setShowInterviewScheduler(false);
   };
 
   const handleViewProfile = async (applicant) => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/profile/${applicant.firebaseUid}`);
-      const data = await res.json();
+      const res = await api.get(`/api/auth/profile/${applicant.firebaseUid}`);
+      const data = res.data;
       if (data.success) setSelectedApplicant(data.data);
     } catch {}
     setShowProfileModal(true);

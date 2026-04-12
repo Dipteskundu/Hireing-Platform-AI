@@ -6,8 +6,9 @@ import { Rocket, Mail, Lock, User, Eye, EyeOff, Github, Chrome, CheckCircle2, Ar
 import { useEffect, useState } from "react";
 import { auth, googleProvider, firebaseClientStatus } from "../lib/firebaseClient";
 import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
-import { API_BASE } from "../lib/apiClient";
+import api, { API_BASE } from "../lib/apiClient";
 import { safeError } from "../lib/logger";
+import { useAuth } from "../lib/AuthContext";
 
 function normalizeAuthError(err) {
     const code = String(err?.code || "").toLowerCase();
@@ -33,6 +34,7 @@ export default function SignUpPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    const { refreshUser } = useAuth();
     const router = useRouter();
 
     const apiBase = API_BASE;
@@ -55,20 +57,15 @@ export default function SignUpPage() {
 
     async function syncUserWithBackend(user, selectedRole) {
         try {
-            await fetch(`${apiBase}/api/auth/sync-user`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    uid: user.uid,
-                    email: user.email,
-                    displayName: user.displayName,
-                    provider: user.providerData?.[0]?.providerId,
-                    photoURL: user.photoURL,
-                    role: selectedRole,
-                }),
+            await api.post("/api/auth/sync-user", {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                provider: user.providerData?.[0]?.providerId,
+                photoURL: user.photoURL,
+                role: selectedRole,
             });
+            await refreshUser();
         } catch (err) {
             safeError("Failed to sync user with backend", err);
         }

@@ -30,7 +30,7 @@ import { useAuth } from "../../lib/AuthContext";
 import { useTheme } from "../../lib/ThemeContext";
 import Avatar from "../common/Avatar";
 import NotificationPanel from "../Notifications/NotificationPanel";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -42,10 +42,8 @@ export default function Navbar() {
   const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, userProfile, role, isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme, mounted } = useTheme();
-  const [profileRoleLabel, setProfileRoleLabel] = useState(null);
-  const [profileDisplayName, setProfileDisplayName] = useState(null);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -78,11 +76,8 @@ export default function Navbar() {
     if (!isAuthenticated || !user?.uid) return;
     const fetchUnreadCount = async () => {
       try {
-        const res = await fetch(
-          new URL(`/api/notifications/${user.uid}`, apiBase).toString(),
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const res = await api.get(`/api/notifications/${user.uid}`);
+        const json = res.data;
         if (json.success && json.data)
           setUnreadCount(json.data.unreadCount || 0);
       } catch (err) {
@@ -92,40 +87,14 @@ export default function Navbar() {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [apiBase, isAuthenticated, user?.uid]);
+  }, [isAuthenticated, user?.uid]);
 
-  // Fetch user profile from backend to determine role/label (Recruiter / Pro member etc.)
-  useEffect(() => {
-    if (!isAuthenticated || !user?.uid) return;
-    let mountedFlag = true;
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch(
-          new URL(`/api/auth/profile/${user.uid}`, apiBase).toString(),
-        );
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!json.success || !json.data) return;
-        const profile = json.data;
-        let label = "Candidate";
-        if (profile.role === "admin") {
-          label = "Admin";
-        } else if (profile.role === "recruiter" || profile.role === "employer") {
-          label = "Recruiter";
-        } else if (profile.role === "candidate" || profile.role === "user") {
-          label = "Candidate";
-        }
-        if (mountedFlag) setProfileRoleLabel(label);
-        if (mountedFlag && profile.displayName) setProfileDisplayName(profile.displayName);
-      } catch (err) {
-        // ignore profile fetch errors
-      }
-    };
-    fetchProfile();
-    return () => {
-      mountedFlag = false;
-    };
-  }, [apiBase, isAuthenticated, user?.uid]);
+  let profileRoleLabel = "Candidate";
+  if (role === "admin") {
+      profileRoleLabel = "Admin";
+  } else if (role === "recruiter" || role === "employer") {
+      profileRoleLabel = "Recruiter";
+  }
 
   const navLinks = [
     { name: "Home", href: "/", icon: Home },
@@ -219,7 +188,7 @@ export default function Navbar() {
         ];
 
   const userDisplayName =
-    profileDisplayName || user?.displayName || user?.email?.split("@")[0] || "User";
+    userProfile?.displayName || user?.displayName || user?.email?.split("@")[0] || "User";
 
   const closeMobile = (href) => {
     setMobileOpen(false);

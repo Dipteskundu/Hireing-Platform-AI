@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
-import { authedFetch } from "../../lib/authedFetch";
+import api, { API_BASE } from "../../lib/apiClient";
 import PipelineLayout from "../../components/PipelineLayout/PipelineLayout";
 import {
   Clock,
@@ -29,15 +28,15 @@ export default function MyInterviewsPage() {
       try {
         setLoading(true);
         setError("");
-        const response = await authedFetch(user, `${API_BASE}/api/interviews/candidate`);
-        if (!response.ok) throw new Error("Failed to fetch interviews");
-
-        const data = await response.json();
+        const response = await api.get("/api/interviews/candidate");
+        const data = response.data;
         if (data.success) {
           setInterviews(data.interviews || []);
         }
       } catch (err) {
-        setError(err.message);
+        // 500 = server Firebase config issue — show empty state, don't crash
+        if (err?.response?.status !== 500) setError(err.message);
+        setInterviews([]);
       } finally {
         setLoading(false);
       }

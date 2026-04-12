@@ -43,7 +43,7 @@ export default function PipelineLayout({ children, activePhase }) {
 
   useEffect(() => {
     if (!user?.uid) return;
-    fetch(`${API_BASE}/api/jobs/my-jobs/${user.uid}`)
+    fetch(`/api/jobs/my-jobs/${user.uid}`)
       .then(r => r.json())
       .then(d => {
         if (d.success) {
@@ -63,7 +63,7 @@ export default function PipelineLayout({ children, activePhase }) {
 
   useEffect(() => {
     if (!user?.uid) return;
-    fetch(`${API_BASE}/api/applications/recruiter/${user.uid}`)
+    fetch(`/api/applications/recruiter/${user.uid}`)
       .then(r => r.json())
       .then(d => {
         if (!d.success) return;

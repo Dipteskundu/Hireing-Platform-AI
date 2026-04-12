@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { API_BASE } from "../../lib/apiClient";
+import api, { API_BASE } from "../../lib/apiClient";
 import { AlignJustify, User, Eye, Github, ExternalLink, CheckCircle2, XCircle, Loader2, X, FileText, Calendar } from "lucide-react";
 import PipelineLayout from "../../components/PipelineLayout/PipelineLayout";
 import InterviewScheduler from "../../components/InterviewScheduler/InterviewScheduler";
@@ -19,8 +19,8 @@ export default function TaskSubmissionsPage() {
   const fetchSubmissions = useCallback(async () => {
     if (!user?.uid) return;
     try {
-      const res = await fetch(`${API_BASE}/api/tasks/submissions/${user.uid}`);
-      const data = await res.json();
+      const res = await api.get(`/api/tasks/submissions/${user.uid}`);
+      const data = res.data;
       if (data.success) setSubmissions(data.submissions || []);
     } catch (err) {
       console.error("Failed to fetch submissions:", err);
@@ -45,12 +45,8 @@ export default function TaskSubmissionsPage() {
 
   const handleStatusChange = async (appId, newStatus) => {
     try {
-      const res = await fetch(`${API_BASE}/api/applications/${appId}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
+      const res = await api.put(`/api/applications/${appId}/status`, { status: newStatus });
+      if (res.status === 200 || res.data.success) {
         setSubmissions(prev => prev.filter(s => s.application._id !== appId));
         setShowModal(false);
       }
@@ -67,24 +63,22 @@ export default function TaskSubmissionsPage() {
   };
 
   const handleInterviewScheduled = async (interviewData) => {
-    try {
-      const res = await authedFetch(user, `${API_BASE}/api/interviews/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(interviewData),
-      });
-      const result = await res.json();
-      if (result.success) {
-        if (selectedApplicantForInterview?._id) {
-          setSubmissions((prev) =>
-            prev.filter((s) => s.application?._id !== selectedApplicantForInterview._id),
-          );
-          setShowInterviewScheduler(false);
-          setSelectedApplicantForInterview(null);
-          setShowModal(false);
-        }
+    const res = await api.post("/api/interviews/schedule", interviewData);
+    const result = res.data;
+    if (result.success) {
+      if (selectedApplicantForInterview?._id) {
+        setSubmissions((prev) =>
+          prev.filter((s) => s.application?._id !== selectedApplicantForInterview._id),
+        );
+        setShowInterviewScheduler(false);
+        setSelectedApplicantForInterview(null);
+        setShowModal(false);
       }
-    } catch (error) { throw error; }
+    } else if (!result._serverError) {
+      throw new Error(result.message || "Failed to schedule interview.");
+    }
+    // _serverError: silently close the scheduler
+    setShowInterviewScheduler(false);
   };
 
   if (!isAuthenticated) return null;

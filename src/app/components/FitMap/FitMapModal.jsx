@@ -94,7 +94,7 @@ export default function FitMapModal({ job, uid, onClose, onApply }) {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch(`${apiBase}/api/jobs/${job._id}/fit?uid=${uid}`);
+                const res = await fetch(`/api/jobs/${job._id}/fit?uid=${uid}`);
                 const json = await res.json();
                 if (json.success) {
                     setFitData(json.data);

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Avatar from "../../../components/common/Avatar";
-import { API_BASE } from "../../../lib/apiClient";
+import api, { API_BASE } from "../../../lib/apiClient";
 
 const TABS = [
   { id: "basic", label: "Basic Info", icon: User },
@@ -26,7 +26,7 @@ const TABS = [
 ];
 
 export default function EditProfilePage() {
-  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
+  const { user, userProfile, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
   const fileInputRef = useRef(null);
 
@@ -47,40 +47,30 @@ export default function EditProfilePage() {
   }, [isAuthenticated, authLoading, router]);
 
   useEffect(() => {
-    if (!auth) {
-      setFetching(false);
-      setError(
-        "Firebase Auth is not configured. Profile editing requires Firebase. Set NEXT_PUBLIC_FIREBASE_* env vars and restart.",
-      );
-    }
-  }, []);
-
-  const fetchUserProfile = useCallback(async () => {
-    try {
-      if (!auth) return;
-      const res = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-      const json = await res.json();
-      if (json.success) {
-        const d = json.data;
+    if (userProfile) {
         setFormData({
-          displayName: d.displayName || "", title: d.title || "",
-          location: d.location || "", phone: d.phone || "", bio: d.bio || "",
-          skills: Array.isArray(d.skills) ? d.skills.join(", ") : d.skills || "",
-          photoURL: d.photoURL || user?.photoURL || "",
-          experience: d.experience || [], education: d.education || [],
-          projects: d.projects || [], certificates: d.certificates || [],
-          portfolioUrl: d.portfolioUrl || "", linkedin: d.linkedin || "",
-          github: d.github || "", twitter: d.twitter || "", website: d.website || "",
+            displayName: userProfile.displayName || "", 
+            title: userProfile.title || "",
+            location: userProfile.location || "", 
+            phone: userProfile.phone || "", 
+            bio: userProfile.bio || "",
+            skills: Array.isArray(userProfile.skills) ? userProfile.skills.join(", ") : userProfile.skills || "",
+            photoURL: userProfile.photoURL || user?.photoURL || "",
+            experience: userProfile.experience || [], 
+            education: userProfile.education || [],
+            projects: userProfile.projects || [], 
+            certificates: userProfile.certificates || [],
+            portfolioUrl: userProfile.portfolioUrl || "", 
+            linkedin: userProfile.linkedin || "",
+            github: userProfile.github || "", 
+            twitter: userProfile.twitter || "", 
+            website: userProfile.website || "",
         });
-      }
-    } catch (err) {
-      setError("Failed to load profile data");
-    } finally {
-      setFetching(false);
+        setFetching(false);
+    } else if (!authLoading) {
+        setFetching(false);
     }
-  }, [user?.uid, user?.photoURL]);
-
-  useEffect(() => { if (user?.uid) fetchUserProfile(); }, [user?.uid, fetchUserProfile]);
+  }, [userProfile, user?.photoURL, authLoading]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -139,11 +129,8 @@ export default function EditProfilePage() {
     setUpdating(true); setError(""); setSuccess("");
     try {
       const processedData = { ...formData, skills: formData.skills.split(",").map(s => s.trim()).filter(Boolean) };
-      const res = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(processedData),
-      });
-      const json = await res.json();
+      const res = await api.put(`/api/auth/profile/${user.uid}`, processedData);
+      const json = res.data;
       if (json.success) {
         if (auth?.currentUser) { await updateProfile(auth.currentUser, { displayName: formData.displayName || auth.currentUser.displayName }); await refreshUser(); }
         setSuccess("Profile updated!");

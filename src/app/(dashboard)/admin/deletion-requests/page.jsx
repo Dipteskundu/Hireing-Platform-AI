@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../../lib/AuthContext";
-import { API_BASE } from "../../../lib/apiClient";
+import api, { API_BASE } from "../../../lib/apiClient";
 import { AlertTriangle, Loader2, AlertCircle, Search, Building, MapPin, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function DeletionRequestsPage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, role, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,18 +23,15 @@ export default function DeletionRequestsPage() {
       return;
     }
 
-    const verifyAdminAndFetch = async () => {
-      try {
-        const profileRes = await fetch(`${API_BASE}/api/auth/profile/${user.uid}`);
-        const profileData = await profileRes.json();
-        
-        if (profileData?.data?.role !== "admin") {
-          router.push("/dashboard");
-          return;
-        }
+    if (role !== "admin") {
+      router.push("/dashboard");
+      return;
+    }
 
-        const res = await fetch(`${API_BASE}/api/admin/jobs/delete-requests`);
-        const json = await res.json();
+    const fetchJobs = async () => {
+      try {
+        const res = await api.get(`/api/admin/jobs/delete-requests`);
+        const json = res.data;
         if (json.success) {
           setJobs(json.data || []);
         } else {
@@ -47,17 +44,20 @@ export default function DeletionRequestsPage() {
       }
     };
 
-    if (user?.uid) verifyAdminAndFetch();
-  }, [authLoading, isAuthenticated, user, router]);
+    fetchJobs();
+  }, [authLoading, isAuthenticated, role, router]);
 
   const handleAction = async (jobId, action) => {
     try {
       const url = action === "delete" 
-        ? `${API_BASE}/api/admin/jobs/${jobId}` 
-        : `${API_BASE}/api/admin/jobs/${jobId}/approve`; // Restore basically re-approves it
+        ? `/api/admin/jobs/${jobId}` 
+        : `/api/admin/jobs/${jobId}/approve`;
       
-      const res = await fetch(url, { method: action === "delete" ? "DELETE" : "PUT" });
-      const result = await res.json();
+      const res = action === "delete" 
+        ? await api.delete(url)
+        : await api.put(url);
+        
+      const result = res.data;
 
       if (result.success) {
         setJobs((prev) => prev.filter((j) => j._id !== jobId));
